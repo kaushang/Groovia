@@ -28,15 +28,18 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
     mutationFn: ({ username}: { username: string }) => 
       apiRequest("POST", `/api/rooms/code/${roomCode}`, { username }),
     onSuccess: async (response) => {
-      const room = await response.json();
-      const newMember = room.members[room.members.length - 1];
-      console.log(room);
+      const res = await response.json();
+      // Backend now returns { room, userId }
+      const userId = res.userId;
+      
+      sessionStorage.setItem("userId", userId);
+
       toast({
         title: "Joined room!",
-        description: `Welcome to ${room.name}`,
+        description: `Welcome to ${res.room.name}`,
       });
       onClose();
-      navigate(`/room/${room._id}?user=${newMember.userId}`);
+      navigate(`/room/${res.room._id}?user=${userId}`);
     },
     onError: () => {
       toast({

@@ -2,15 +2,21 @@ import mongoose, { Schema, model } from "mongoose";
 
 // ==================== USERS ====================
 const userSchema = new Schema({
-  username: { type: String, required: true, unique: true },
-  createdAt: { type: Date, default: Date.now }
+  username: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
 });
 export const User = model("User", userSchema);
 
 // ==================== ROOMS ====================
 const roomSchema = new Schema({
   name: { type: String, required: true },
-  code: { type: String, required: true, unique: true, length: 6 },
+  code: {
+    type: String,
+    required: true,
+    unique: true,
+    minlength: 6,
+    maxlength: 6,
+  },
   createdBy: { type: Schema.Types.String, ref: "User" },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
@@ -18,14 +24,26 @@ const roomSchema = new Schema({
   members: [
     {
       userId: { type: Schema.Types.String, ref: "User", required: true },
-      joinedAt: { type: Date, default: Date.now }
-    }
+      joinedAt: { type: Date, default: Date.now },
+    },
   ],
   queueItems: [
     {
-      songId: { type: Schema.Types.String, ref: "Song", required: true },
-    }
-  ]
+      song: { type: Schema.Types.ObjectId, ref: "Song", required: true },
+      username: { type: String, ref: "User", required: true },
+      addedBy: { type: Schema.Types.String, ref: "User" },
+      upvotes: { type: Number, default: 0 },
+      downvotes: { type: Number, default: 0 },
+      url: { type: String },
+      voters: [
+        {
+          userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+          voteType: { type: String, enum: ["up", "down"], required: true },
+        },
+      ],
+      isPlaying: { type: Boolean, default: false },
+    },
+  ],
 });
 
 export const Room = model("Room", roomSchema);
@@ -34,11 +52,9 @@ export const Room = model("Room", roomSchema);
 const songSchema = new Schema({
   title: { type: String, required: true },
   artist: { type: String, required: true },
-  album: { type: String },
   duration: { type: Number },
-  thumbnail: { type: String },
-  externalId: { type: String },
-  source: { type: String, default: "youtube" }
+  cover: { type: String },
+  url: { type: String },
 });
 export const Song = model("Song", songSchema);
 
@@ -59,6 +75,6 @@ const voteSchema = new Schema({
   queueItemId: { type: Schema.Types.ObjectId, ref: "QueueItem" },
   userId: { type: Schema.Types.ObjectId, ref: "User" },
   voteType: { type: String, enum: ["up", "down"], required: true },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 export const Vote = model("Vote", voteSchema);

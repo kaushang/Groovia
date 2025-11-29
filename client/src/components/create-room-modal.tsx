@@ -34,14 +34,15 @@ export default function CreateRoomModal({
     onSuccess: async (response) => {
       const res = await response.json();
       const userId = res.userId;
-      // console.log(userId);
-      // console.log(res.room.name);
+      
+      // Save to session storage so room.tsx knows we are authenticated
+      sessionStorage.setItem("userId", userId);
+
       toast({
         title: "Room created!",
         description: `${res.room.name} has been created successfully`,
       });
       onClose();
-      // setLocation(`/room/${res.room._id}`);
       navigate(`/room/${res.room._id}?user=${userId}`);
     },
     onError: () => {
