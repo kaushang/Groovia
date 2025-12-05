@@ -8,7 +8,7 @@ import {
 // import { storage } from "./storage";
 import { User, Room, Song, QueueItem, Vote } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
-import mongoose from "mongoose"; 
+import mongoose from "mongoose";
 import { log } from "./vite";
 
 function generateRoomCode(): string {
@@ -322,6 +322,7 @@ export async function registerRoutes(
     //     url: "/songs/winning_speech.mp3",
     //   },
     // ]);
+
     try {
       const { q } = req.query;
       if (!q || typeof q !== "string") {
@@ -346,10 +347,10 @@ export async function registerRoutes(
     try {
       const { queueItemId } = req.params;
       const { userId } = req.body; // Expect userId in body
-      
+
       // Find room containing this queue item
       const room = await Room.findOne({ "queueItems._id": queueItemId });
-      
+
       if (!room) {
         return res.status(404).json({ message: "Queue item not found" });
       }
@@ -373,18 +374,34 @@ export async function registerRoutes(
         }
       }
 
+      const isPlaying = queueItem.isPlaying;
+
       if (!isOwner) {
         return res.status(403).json({ message: "You can only delete your own songs" });
       }
-      
-      await Room.findByIdAndUpdate(room._id, {
-        $pull: { queueItems: { _id: queueItemId } }
-      });
-      
-      // Emit update
+
+      // Remove the item
+      room.queueItems.pull({ _id: queueItemId });
+
+      // If the deleted song was playing, promote the next one
+      if (isPlaying && room.queueItems.length > 0) {
+        // Sort by votes to find next best song
+        room.queueItems.sort((a, b) => {
+          const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
+          const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
+          return scoreB - scoreA;
+        });
+
+        // Play the first one
+        room.queueItems[0].isPlaying = true;
+      }
+
+      await room.save();
+
+      // Emit update with the new state (including new playing song if applicable)
       const updatedRoom = await Room.findById(room._id).populate("queueItems.song");
       io.to(room._id.toString()).emit("roomUpdated", updatedRoom);
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Delete song error:", error);
@@ -433,7 +450,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Room not found" });
       }
 
-            const currentListenerCount = rooms.get(roomId)?.size || 0;
+      const currentListenerCount = rooms.get(roomId)?.size || 0;
       const songAddedData = {
         type: "SONG_ADDED",
         roomId,
@@ -482,51 +499,51 @@ export async function registerRoutes(
   //     res.status(400).json({ message: "321Failed to vote" });
   //   }
   // });
-app.post("/api/queue/:queueItemId/vote", async (req, res) => {
-  try {
-    const { queueItemId } = req.params;
-    const { userId, voteType, roomId } = req.body;
+  app.post("/api/queue/:queueItemId/vote", async (req, res) => {
+    try {
+      const { queueItemId } = req.params;
+      const { userId, voteType, roomId } = req.body;
 
-    const room = await Room.findOne({ _id: roomId });
-    if (!room) return res.status(404).json({ message: "Room not found" });
+      const room = await Room.findOne({ _id: roomId });
+      if (!room) return res.status(404).json({ message: "Room not found" });
 
-    const queueItem = room.queueItems.id(queueItemId);
-    if (!queueItem) return res.status(404).json({ message: "Queue item not found" });
+      const queueItem = room.queueItems.id(queueItemId);
+      if (!queueItem) return res.status(404).json({ message: "Queue item not found" });
 
-    const existingVote = queueItem.voters.find(v => v.userId.toString() === userId);
-    if (existingVote) {
-      if (existingVote.voteType !== voteType) {
-        if (existingVote.voteType === "up") queueItem.upvotes -= 1;
-        else queueItem.downvotes -= 1;
+      const existingVote = queueItem.voters.find(v => v.userId.toString() === userId);
+      if (existingVote) {
+        if (existingVote.voteType !== voteType) {
+          if (existingVote.voteType === "up") queueItem.upvotes -= 1;
+          else queueItem.downvotes -= 1;
 
-        existingVote.voteType = voteType;
+          existingVote.voteType = voteType;
+          if (voteType === "up") queueItem.upvotes += 1;
+          else queueItem.downvotes += 1;
+        }
+      } else {
+        queueItem.voters.push({ userId, voteType });
         if (voteType === "up") queueItem.upvotes += 1;
         else queueItem.downvotes += 1;
       }
-    } else {
-      queueItem.voters.push({ userId, voteType });
-      if (voteType === "up") queueItem.upvotes += 1;
-      else queueItem.downvotes += 1;
+
+      await room.save();
+      await room.populate("queueItems.song");
+
+      // Emit to everyone in room
+      io.to(roomId).emit("voteUpdated", {
+        roomId,
+        queueItems: room.queueItems.map(q => q.toObject()),
+        updatedQueueItem: queueItem.toObject(),
+        votedBy: { userId },
+        voteType,
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to record vote" });
     }
-
-    await room.save();
-    await room.populate("queueItems.song");
-
-    // Emit to everyone in room
-    io.to(roomId).emit("voteUpdated", {
-      roomId,
-      queueItems: room.queueItems.map(q => q.toObject()),
-      updatedQueueItem: queueItem.toObject(),
-      votedBy: { userId },
-      voteType,
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to record vote" });
-  }
-});
+  });
 
 
   app.delete("/api/queue/:queueItemId/vote", async (req, res) => {
@@ -546,10 +563,10 @@ app.post("/api/queue/:queueItemId/vote", async (req, res) => {
         const vote = queueItem.voters[voteIndex];
         if (vote.voteType === "up") queueItem.upvotes -= 1;
         else queueItem.downvotes -= 1;
-        
+
         queueItem.voters.splice(voteIndex, 1);
         await room.save();
-        
+
         // Emit update
         const updatedRoom = await Room.findById(roomId).populate("queueItems.song");
         if (updatedRoom) {

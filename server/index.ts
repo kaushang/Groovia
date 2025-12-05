@@ -206,10 +206,10 @@ io.on("connection", (socket) => {
       const userLeftData = {
         user: user
           ? {
-              userId: user.userId,
-              username: user.username,
-              socketId: socket.id,
-            }
+            userId: user.userId,
+            username: user.username,
+            socketId: socket.id,
+          }
           : { userId },
         roomId: roomId,
       };
@@ -392,11 +392,11 @@ io.on("connection", (socket) => {
       try {
         const { roomId, queueItemId, userId, voteType } = data;
         console.log(22);
-        
+
         // Get user info from connected users
         const user = connectedUsers.get(socket.id);
         console.log(33);
-        
+
         // Validate that user is connected and in the room
         if (!user || !user.rooms.has(roomId)) {
           console.log(44);
@@ -407,7 +407,7 @@ io.on("connection", (socket) => {
           return;
         }
         console.log(55);
-        
+
         // Validate required fields
         if (!queueItemId || !userId || !roomId || !voteType) {
           console.log(66);
@@ -418,7 +418,7 @@ io.on("connection", (socket) => {
           return;
         }
         console.log(77);
-        
+
         // Validate vote type
         if (!["up", "down"].includes(voteType)) {
           console.log(88);
@@ -429,7 +429,7 @@ io.on("connection", (socket) => {
           return;
         }
         console.log(99);
-        
+
         // Find user in database
         const dbUser = await User.findById(userId);
         if (!dbUser) {
@@ -441,14 +441,14 @@ io.on("connection", (socket) => {
           return;
         }
         console.log(22);
-        
+
         // Find the room and queue item
         const room = await Room.findOne({
           _id: roomId,
           "queueItems._id": queueItemId,
         }).populate("queueItems.song");
         console.log(33);
-        
+
         if (!room) {
           console.log(44);
           socket.emit("voteError", {
@@ -458,7 +458,7 @@ io.on("connection", (socket) => {
           return;
         }
         console.log(55);
-        
+
         const queueItem = room.queueItems.id(queueItemId);
         if (!queueItem) {
           console.log(66);
@@ -469,17 +469,17 @@ io.on("connection", (socket) => {
           return;
         }
         console.log(77);
-        
+
         // Get song title for notifications
         const songTitle = (queueItem.song as any)?.title || "Unknown Song";
         console.log(88);
-        
+
         // Check if this user already voted
         const existingVote = queueItem.voters.find(
           (v) => v.userId.toString() === userId
         );
         console.log(99);
-        
+
         if (existingVote) {
           console.log(11);
           // User already voted → adjust counts if switching vote
@@ -489,9 +489,9 @@ io.on("connection", (socket) => {
             } else {
               queueItem.downvotes -= 1;
             }
-            
+
             existingVote.voteType = voteType;
-            
+
             if (voteType === "up") {
               queueItem.upvotes += 1;
             } else {
@@ -508,20 +508,20 @@ io.on("connection", (socket) => {
             queueItem.downvotes += 1;
           }
         }
-        
+
         console.log(33);
         // Save the updated room
         await room.save();
-        
+
         // Re-populate to ensure we have full data
         await room.populate("queueItems.song");
-        
+
         console.log(44);
         // Get current listener count
         const currentListenerCount = rooms.get(roomId)?.size || 0;
         const plainQueueItems = room.queueItems.map((qi) => qi.toObject());
         const plainQueueItem = queueItem.toObject();
-        
+
         console.log(55);
         // Prepare vote update data
         const voteUpdateData = {
@@ -539,7 +539,7 @@ io.on("connection", (socket) => {
           updatedQueueItem: queueItem,
           listenerCount: currentListenerCount,
         };
-        
+
         console.log(66);
         // Emit success back to the user who voted
         socket.emit("voteSuccess", {
@@ -547,12 +547,12 @@ io.on("connection", (socket) => {
           message: "Vote recorded successfully",
         });
         console.log(77);
-        
+
         // Notify other users in the room about the vote
         io.to(roomId).emit("voteUpdated", voteUpdateData);
 
         console.log(88);
-        
+
         log(
           `WebSocket: User ${userId} (${dbUser.username}) voted ${voteType} on song "${songTitle}" in room ${roomId}`
         );
@@ -570,7 +570,7 @@ io.on("connection", (socket) => {
   socket.on("songEnded", async (data: { roomId: string; songId: string }) => {
     try {
       const { roomId, songId } = data;
-      
+
       // Find the room
       const room = await Room.findById(roomId);
       if (!room) return;
@@ -587,16 +587,16 @@ io.on("connection", (socket) => {
         // If there are more songs, play the next one
         if (room.queueItems.length > 0) {
           // Sort by votes (descending) to pick the next best song
-           room.queueItems.sort((a, b) => {
+          room.queueItems.sort((a, b) => {
             const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
             const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
             return scoreB - scoreA;
           });
-          
+
           // Set the first one to playing
           room.queueItems[0].isPlaying = true;
         }
-        
+
         await room.save();
         await room.populate("queueItems.song");
 
@@ -666,7 +666,7 @@ app.get("/api/websocket/stats", (req, res) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
+      // reusePort: true,
     },
     () => {
       log(`Server is live on: http://localhost:${port}`);

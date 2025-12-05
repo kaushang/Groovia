@@ -33,6 +33,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import LeaveRoomModal from "@/components/leave-room-modal";
+
 import { Label } from "@/components/ui/label";
 import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
@@ -52,16 +54,27 @@ export default function Room() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const socketRef = useRef<Socket | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [location] = useLocation();
   const userIdParam = searchParams.get("user");
   const [userId, setUserId] = useState<string | null>(userIdParam);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [joinUsername, setJoinUsername] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
 
   // Check if we need to show join dialog
   useEffect(() => {
     const storedUserId = sessionStorage.getItem("userId");
-    
+
     // If there's a user param in URL
     if (userIdParam) {
       // If it matches our stored session, we're good
@@ -72,18 +85,18 @@ export default function Room() {
         // unless we have a valid stored session that ISN'T in the URL (edge case, but let's stick to "ignore URL if not match")
         // Actually, if we have a stored session, we could just use that?
         // User said: "Room Id is not needed as the url already has room id. And the user id that the url contains gets ignored and gets replaced with the current user's id"
-        
+
         if (storedUserId) {
-           // We have a session, but URL has different ID. Let's assume we use our session.
-           setUserId(storedUserId);
-           // Update URL to match our ID
-           const newParams = new URLSearchParams(searchParams);
-           newParams.set("user", storedUserId);
-           setLocation(`/room/${roomId}?${newParams.toString()}`);
+          // We have a session, but URL has different ID. Let's assume we use our session.
+          setUserId(storedUserId);
+          // Update URL to match our ID
+          const newParams = new URLSearchParams(searchParams);
+          newParams.set("user", storedUserId);
+          setLocation(`/room/${roomId}?${newParams.toString()}`);
         } else {
-           // No session, and URL has ID (likely creator's). Show join dialog.
-           setUserId(null);
-           setShowJoinDialog(true);
+          // No session, and URL has ID (likely creator's). Show join dialog.
+          setUserId(null);
+          setShowJoinDialog(true);
         }
       }
     } else {
@@ -108,16 +121,16 @@ export default function Room() {
       });
 
       const newUserId = res.data.userId;
-      
+
       // Save to session
       sessionStorage.setItem("userId", newUserId);
       setUserId(newUserId);
-      
+
       // Update URL
       const newParams = new URLSearchParams(searchParams);
       newParams.set("user", newUserId);
       setLocation(`/room/${roomId}?${newParams.toString()}`);
-      
+
       setShowJoinDialog(false);
       toast({
         title: "Joined Room",
@@ -141,6 +154,8 @@ export default function Room() {
     },
     enabled: !!roomId,
   });
+
+  const activeSong = room?.queueItems?.find((item: any) => item.isPlaying);
 
   const currentUser = room?.members?.find((m: any) => {
     const mId = m.userId?._id || m.userId;
@@ -390,24 +405,24 @@ export default function Room() {
   //     queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
   //   },
   // });
-const voteMutation = useMutation({
-  mutationFn: async ({ queueItemId, voteType }: { queueItemId: string; voteType: "up" | "down"; }) => {
-    if (!roomId || !userId) throw new Error("Missing required data");
+  const voteMutation = useMutation({
+    mutationFn: async ({ queueItemId, voteType }: { queueItemId: string; voteType: "up" | "down"; }) => {
+      if (!roomId || !userId) throw new Error("Missing required data");
 
-    return apiRequest("POST", `/api/queue/${queueItemId}/vote`, {
-      userId,
-      voteType,
-      roomId,
-    });
-  },
-  onSuccess: () => {
-    // No need to manually update cache here; socket will push the update
-    toast({ title: "Vote recorded" });
-  },
-  onError: (error: any) => {
-    toast({ title: "Failed to vote", description: error.message || "Try again", variant: "destructive" });
-  },
-});
+      return apiRequest("POST", `/api/queue/${queueItemId}/vote`, {
+        userId,
+        voteType,
+        roomId,
+      });
+    },
+    onSuccess: () => {
+      // No need to manually update cache here; socket will push the update
+      toast({ title: "Vote recorded" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to vote", description: error.message || "Try again", variant: "destructive" });
+    },
+  });
 
 
 
@@ -459,6 +474,47 @@ const voteMutation = useMutation({
       });
     },
   });
+
+  const handleNext = () => {
+    if (activeSong && socketRef.current && roomId) {
+      socketRef.current.emit("songEnded", {
+        roomId,
+        songId: activeSong.song._id || activeSong.song.id,
+      });
+    }
+  };
+
+  const handlePrevious = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !activeSong) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const width = rect.width;
+    const percentage = x / width;
+
+    // Use stored duration or fallback to song metadata
+    const totalDuration = duration || activeSong.song.duration || 0;
+    const newTime = percentage * totalDuration;
+
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying && activeSong) {
+        audioRef.current.play().catch(e => console.log("Playback failed:", e));
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, activeSong]);
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
@@ -483,10 +539,9 @@ const voteMutation = useMutation({
     );
   }
 
-  const currentSong = room.queueItems?.find((item: any) => item.isPlaying);
 
   return (
-    <div className="h-screen flex flex-col pt-24 pb-8 overflow-hidden">
+    <div className="h-screen flex flex-col pt-12 pb-8 overflow-hidden">
       {/* Room Header */}
       <div className="container mx-auto px-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 w-[100%]">
@@ -525,13 +580,19 @@ const voteMutation = useMutation({
             <Button
               size="sm"
               className="bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500"
-              onClick={() => leaveRoomMutation.mutate()}
+              onClick={() => setShowLeaveDialog(true)}
               disabled={leaveRoomMutation.isPending}
               data-testid="button-leave-room"
             >
               <LogOut className="w-4 h-4 mr-2" />
               {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
             </Button>
+            <LeaveRoomModal
+              isOpen={showLeaveDialog}
+              onClose={() => setShowLeaveDialog(false)}
+              onConfirm={() => leaveRoomMutation.mutate()}
+              isLeaving={leaveRoomMutation.isPending}
+            />
           </div>
         </div>
       </div>
@@ -578,10 +639,10 @@ const voteMutation = useMutation({
       <div className="grid lg:grid-cols-3 gap-6 px-12 flex-1 min-h-0 pb-6">
         {/* Search and Add Songs */}
         <GlassPanel className="p-6 h-full flex flex-col">
-          <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
+          {/* <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Search className="w-6 h-6 mr-3 text-purple-300" />
             Add Songs
-          </h2>
+          </h2> */}
 
           {/* Search Bar */}
           <div className="relative mb-6">
@@ -597,7 +658,7 @@ const voteMutation = useMutation({
           </div>
 
           {/* Search Results */}
-          <div className="space-y-3 mb-6 flex-1 overflow-y-auto pr-2">
+          <div className="space-y-3 flex-1 overflow-y-auto">
             {isSearching ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
@@ -631,42 +692,35 @@ const voteMutation = useMutation({
                   </Button>
                 </div>
               ))
-            ) : searchQuery.length > 2 ? (
-              <p className="text-center text-gray-400 py-8">No songs found</p>
+            ) : searchQuery.length > 0 ? (
+              <div className="h-full flex items-center justify-center min-h-[200px]">
+                <p className="text-gray-400">No results found</p>
+              </div>
             ) : null}
           </div>
         </GlassPanel>
 
         {/* Audio Player - Hidden but functional */}
         <audio
-          ref={(el) => {
-            if (el) {
-              if (currentSong?.isPlaying) {
-                const playPromise = el.play();
-                if (playPromise !== undefined) {
-                  playPromise.catch((error) => {
-                    console.log("Autoplay prevented:", error);
-                    // setIsPlaying(false); // Optional: update UI to show paused state
-                  });
-                }
-              } else {
-                el.pause();
-              }
-            }
-          }}
-          src={currentSong?.song?.url}
-          autoPlay={currentSong?.isPlaying}
+          ref={audioRef}
+          src={activeSong?.song?.url}
           onEnded={() => {
-            if (currentSong && socketRef.current) {
-              console.log("Song ended, requesting next...", currentSong);
+            if (activeSong && socketRef.current) {
+              console.log("Song ended, requesting next...", activeSong);
               socketRef.current.emit("songEnded", {
                 roomId,
-                songId: currentSong.song._id || currentSong.song.id,
+                songId: activeSong.song._id || activeSong.song.id,
               });
             }
           }}
           onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
+          onPause={(e) => {
+            if (!e.currentTarget.ended) {
+              setIsPlaying(false);
+            }
+          }}
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         />
 
         {/* Now Playing */}
@@ -676,17 +730,17 @@ const voteMutation = useMutation({
             Now Playing
           </h2>
 
-          {currentSong ? (
+          {activeSong ? (
             <>
               {/* Album Artwork */}
               <div className="relative mb-6 group">
                 <img
                   src={
-                    currentSong.song.thumbnail ||
+                    activeSong.song.cover ||
                     "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=280&h=280&fit=crop&crop=center"
                   }
-                  alt={`${currentSong.song.title} artwork`}
-                  className="w-70 h-70 rounded-xl shadow-2xl object-cover animate-float"
+                  alt={`${activeSong.song.title} artwork`}
+                  className="w-70 h-70 rounded-xl shadow-xl object-cover"
                   data-testid="current-song-artwork"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -698,20 +752,20 @@ const voteMutation = useMutation({
                   className="text-2xl font-bold mb-2 text-white"
                   data-testid="current-song-title"
                 >
-                  {currentSong.song.title}
+                  {activeSong.song.title}
                 </h3>
                 <p
                   className="text-gray-300 text-lg"
                   data-testid="current-song-artist"
                 >
-                  {currentSong.song.artist}
+                  {activeSong.song.artist}
                 </p>
-                {currentSong.song.album && (
+                {activeSong.song.album && (
                   <p
                     className="text-gray-400 text-sm mt-1"
                     data-testid="current-song-album"
                   >
-                    {currentSong.song.album}
+                    {activeSong.song.album}
                   </p>
                 )}
               </div>
@@ -719,14 +773,21 @@ const voteMutation = useMutation({
               {/* Progress Bar */}
               <div className="w-full mb-6">
                 <div className="flex justify-between text-sm text-gray-400 mb-2">
-                  <span>2:14</span>
-                  <span>
-                    {Math.floor((currentSong.song.duration || 180) / 60)}:
-                    {(currentSong.song.duration || 180) % 60}
-                  </span>
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration || activeSong.song.duration || 0)}</span>
                 </div>
-                <div className="w-full bg-white/20 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-purple-400 to-blue-400 h-2 rounded-full transition-all w-3/5"></div>
+                <div
+                  className="w-full bg-white/20 rounded-full h-2 cursor-pointer relative group"
+                  onClick={handleSeek}
+                  data-testid="progress-bar-container"
+                >
+                  <div className="absolute inset-0 rounded-full hover:bg-white/10 transition-colors"></div>
+                  <div
+                    className="bg-gradient-to-r from-purple-400 to-blue-400 h-2 rounded-full transition-all relative"
+                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                  >
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
                 </div>
               </div>
 
@@ -737,6 +798,7 @@ const voteMutation = useMutation({
                   size="sm"
                   className="text-2xl hover:text-purple-300 transition-colors"
                   data-testid="button-previous"
+                  onClick={handlePrevious}
                 >
                   <SkipBack className="w-6 h-6" />
                 </Button>
@@ -757,6 +819,7 @@ const voteMutation = useMutation({
                   size="sm"
                   className="text-2xl hover:text-purple-300 transition-colors"
                   data-testid="button-next"
+                  onClick={handleNext}
                 >
                   <SkipForward className="w-6 h-6" />
                 </Button>
@@ -771,13 +834,13 @@ const voteMutation = useMutation({
 
         {/* Queue List */}
         <GlassPanel className="p-6 h-full flex flex-col">
-          <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
+          <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Music className="w-6 h-6 mr-3 text-blue-300" />
             Up Next
           </h2>
 
           {/* Queue Items */}
-          <div className="space-y-3 mb-6 flex-1 overflow-y-auto pr-2">
+          <div className="space-y-3 flex-1 overflow-y-auto">
             <AnimatePresence mode="popLayout">
               {room?.queueItems
                 // .filter removed to include all items
@@ -839,11 +902,10 @@ const voteMutation = useMutation({
                               voteType: "up",
                             })
                           }
-                          className={`transition-colors p-1 ${
-                            userVote === "up"
-                              ? "text-green-400 bg-green-400/10"
-                              : "text-gray-400 hover:text-green-400 hover:bg-white/10"
-                          }`}
+                          className={`transition-colors p-1 ${userVote === "up"
+                            ? "text-green-400 bg-green-400/10"
+                            : "text-gray-400 hover:text-green-400 hover:bg-white/10"
+                            }`}
                         >
                           <ChevronUp className="w-4 h-4" />
                           <span className="mr-1">{item.upvotes ?? 0}</span>
@@ -858,16 +920,15 @@ const voteMutation = useMutation({
                               voteType: "down",
                             })
                           }
-                          className={`transition-colors p-1 ${
-                            userVote === "down"
-                              ? "text-red-400 bg-red-400/10"
-                              : "text-gray-400 hover:text-red-400 hover:bg-white/10"
-                          }`}
+                          className={`transition-colors p-1 ${userVote === "down"
+                            ? "text-red-400 bg-red-400/10"
+                            : "text-gray-400 hover:text-red-400 hover:bg-white/10"
+                            }`}
                         >
                           <ChevronDown className="w-4 h-4" />
                           <span className="mr-1">{item.downvotes ?? 0}</span>
                         </Button>
-                          {(item.addedBy == userId) && (
+                        {(item.addedBy == userId) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -885,7 +946,7 @@ const voteMutation = useMutation({
             </AnimatePresence>
 
             {room?.queueItems?.length === 0 && (
-              <div className="text-center py-8">
+              <div className="text-center py-8 h-full flex items-center justify-center min-h-[200px]">
                 <p className="text-gray-400">Queue is empty. Add some songs!</p>
               </div>
             )}
