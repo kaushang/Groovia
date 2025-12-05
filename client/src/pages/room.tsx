@@ -541,7 +541,7 @@ export default function Room() {
 
 
   return (
-    <div className="h-screen flex flex-col pt-12 pb-8 overflow-hidden">
+    <div className="h-screen flex flex-col pt-6 pb-8 overflow-hidden">
       {/* Room Header */}
       <div className="container mx-auto px-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 w-[100%]">
@@ -638,7 +638,7 @@ export default function Room() {
       {/* Three Column Layout */}
       <div className="grid lg:grid-cols-3 gap-6 px-12 flex-1 min-h-0 pb-6">
         {/* Search and Add Songs */}
-        <GlassPanel className="p-6 h-full flex flex-col">
+        <GlassPanel className="p-6 h-[80vh] flex flex-col">
           {/* <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Search className="w-6 h-6 mr-3 text-purple-300" />
             Add Songs
@@ -658,7 +658,7 @@ export default function Room() {
           </div>
 
           {/* Search Results */}
-          <div className="space-y-3 flex-1 overflow-y-auto">
+          <div className="space-y-3 flex-1 overflow-y-auto mr-1 custom-scrollbar">
             {isSearching ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
@@ -724,7 +724,7 @@ export default function Room() {
         />
 
         {/* Now Playing */}
-        <GlassPanel className="p-6 h-full flex flex-col items-center text-center overflow-y-auto">
+        <GlassPanel className="p-6 h-[80vh] flex flex-col items-center text-center overflow-y-auto">
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
             <Play className="w-6 h-6 mr-3 text-green-400" />
             Now Playing
@@ -733,21 +733,20 @@ export default function Room() {
           {activeSong ? (
             <>
               {/* Album Artwork */}
-              <div className="relative mb-6 group">
-                <img
-                  src={
-                    activeSong.song.cover ||
-                    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=280&h=280&fit=crop&crop=center"
-                  }
-                  alt={`${activeSong.song.title} artwork`}
-                  className="w-70 h-70 rounded-xl shadow-xl object-cover"
-                  data-testid="current-song-artwork"
-                />
+              <div className="relative mb-5 group">                <img
+                src={
+                  activeSong.song.cover ||
+                  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=280&h=280&fit=crop&crop=center"
+                }
+                alt={`${activeSong.song.title} artwork`}
+                className="w-70 h-70 rounded-xl shadow-xl object-cover"
+                data-testid="current-song-artwork"
+              />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
 
               {/* Song Info */}
-              <div className="mb-6">
+              <div className="mb-2">
                 <h3
                   className="text-2xl font-bold mb-2 text-white"
                   data-testid="current-song-title"
@@ -771,7 +770,7 @@ export default function Room() {
               </div>
 
               {/* Progress Bar */}
-              <div className="w-full mb-6">
+              <div className="w-full mb-4">
                 <div className="flex justify-between text-sm text-gray-400 mb-2">
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration || activeSong.song.duration || 0)}</span>
@@ -833,18 +832,22 @@ export default function Room() {
         </GlassPanel>
 
         {/* Queue List */}
-        <GlassPanel className="p-6 h-full flex flex-col">
+        <GlassPanel className="p-6 h-[80vh] flex flex-col">
           <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Music className="w-6 h-6 mr-3 text-blue-300" />
             Up Next
           </h2>
 
           {/* Queue Items */}
-          <div className="space-y-3 flex-1 overflow-y-auto">
+          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
             <AnimatePresence mode="popLayout">
               {room?.queueItems
                 // .filter removed to include all items
                 .sort((a: any, b: any) => {
+                  // Keep currently playing song at the top
+                  if (a.isPlaying) return -1;
+                  if (b.isPlaying) return 1;
+
                   const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
                   const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
                   return scoreB - scoreA; // Descending order
@@ -862,7 +865,7 @@ export default function Room() {
                       exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       key={item._id || item.id}
-                      className="flex items-center p-3 rounded-lg hover:bg-white/10 transition-all group bg-black/20"
+                      className="flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20"
                     >
                       <div className="text-gray-400 text-sm w-8 text-center mr-1">
                         {index + 1}
