@@ -67,11 +67,11 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center px-6 pt-20">
+    <div className="min-h-screen flex flex-col justify-center items-center">
       <div className="text-center max-w-4xl mx-auto">
         {/* Hero Logo and Animation */}
         <div className="mb-8 relative">
-          <div className="text-8xl md:text-9xl font-700 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent">
+          <div className="text-8xl md:text-9xl font-700 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent mb-[-30px]">
             {/* <Music className="inline-block mr-4 h-20 w-20 md:h-24 md:w-24" /> */}
             Groovia
           </div>
