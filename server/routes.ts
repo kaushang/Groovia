@@ -10,6 +10,31 @@ import { User, Room, Song, QueueItem, Vote } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
 import mongoose from "mongoose";
 import { log } from "./vite";
+import axios from "axios";
+import qs from "qs";
+
+export async function getSpotifyToken() {
+  const tokenUrl = "https://accounts.spotify.com/api/token";
+
+  const data = qs.stringify({
+    grant_type: "client_credentials"
+  });
+
+  const headers = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Authorization":
+      "Basic " +
+      Buffer.from(
+        process.env.SPOTIFY_CLIENT_ID +
+        ":" +
+        process.env.SPOTIFY_CLIENT_SECRET
+      ).toString("base64")
+  };
+
+  const response = await axios.post(tokenUrl, data, { headers });
+  console.log(response.data.access_token);
+  return response.data.access_token;
+}
 
 function generateRoomCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -37,6 +62,59 @@ export async function registerRoutes(
       res.json(room);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch room" });
+    }
+  });
+
+  app.get("/spotify-token-test", async (req, res) => {
+    try {
+      const token = await getSpotifyToken();
+      console.log(token);
+      res.json({ token });
+    } catch (err: any) {
+      console.error(err?.response?.data || err.message);
+      res.status(500).json({ error: "Failed to fetch token" });
+    }
+  });
+
+  app.get("/search", async (req, res) => {
+    try {
+      const query = req.query.q;
+
+      if (!query) {
+        return res.json({ tracks: [] });
+      }
+
+      // 1. Get access token
+      const token = await getSpotifyToken();
+
+      // 2. Call Spotify Search API
+      const response = await axios.get("https://api.spotify.com/v1/search", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        params: {
+          q: query,
+          type: "track",
+          limit: 10
+        }
+      });
+
+      // 3. Format results
+      const tracks = response.data.tracks.items.map((track: any) => ({
+        id: track.id,
+        name: track.name,
+        artists: track.artists.map((a: any) => a.name),
+        album: track.album.name,
+        image: track.album.images[0]?.url,
+        preview_url: track.preview_url,
+        duration: track.duration_ms
+      }));
+      console.log("❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️\n");
+      console.log(tracks);
+      res.json({ tracks });
+    } catch (error: any) {
+      console.error(error?.response?.data || error.message);
+      res.status(500).json({ error: "Failed to search songs" });
     }
   });
 

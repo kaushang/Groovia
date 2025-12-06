@@ -354,12 +354,12 @@ export default function Room() {
   // }, [room?.id]);
 
   const { data: searchResults = [], isLoading: isSearching } = useQuery({
-    queryKey: ["/api/songs/search", { q: searchQuery }],
+    queryKey: ["/search", { q: searchQuery }],
     queryFn: async () => {
-      const res = await axios.get<any>("/api/songs/search", {
+      const res = await axios.get<any>("/search", {
         params: { q: searchQuery },
       });
-      return res.data;
+      return res.data.tracks;
     },
     enabled: searchQuery.length > 0,
   });
@@ -667,24 +667,34 @@ export default function Room() {
               searchResults.map((song: any) => (
                 <div
                   key={song.id}
-                  className="flex items-center p-3 rounded-lg hover:bg-white/10 transition-all group cursor-pointer"
+                  className="flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group cursor-pointer"
                   data-testid={`search-result-${song.id}`}
                 >
                   <img
-                    src={song.cover}
-                    alt={`${song.cover} artwork`}
+                    src={song.image}
+                    alt={`${song.name} artwork`}
                     className="w-12 h-12 rounded-lg object-cover mr-4"
                   />
                   <div className="flex-1">
                     <p className="font-semibold text-sm text-white">
-                      {song.title}
+                      {song.name}
                     </p>
-                    <p className="text-gray-400 text-xs">{song.artist}</p>
+                    <p className="text-gray-400 text-xs">
+                      {song.artists.map((artist: string, i: number) => (
+                        <span key={i}>
+                          {artist}
+                          {i < song.artists.length - 1 && ", "}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                  <div className="text-gray-400 text-xs mr-3">
+                    {formatTime(song.duration / 1000)}
                   </div>
                   <Button
                     // size="sm"
                     variant="ghost"
-                    onClick={() => addToQueueMutation.mutate(song._id)}
+                    onClick={() => addToQueueMutation.mutate(song.id)}
                     className="h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-purple-500 to-blue-500 p-2 rounded-[50%]"
                     data-testid={`button-add-song-${song.id}`}
                   >
