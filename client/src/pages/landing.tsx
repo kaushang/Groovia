@@ -47,21 +47,21 @@ export default function Landing() {
 
   const features = [
     {
-      icon: Users,
-      title: "Real-time Collaboration",
-      description: "Listen together with friends in synchronized rooms",
-      color: "text-purple-300",
-    },
-    {
       icon: Vote,
       title: "Democratic Queue",
       description: "Vote on songs to shape the perfect playlist",
       color: "text-blue-300",
     },
     {
+      icon: Users,
+      title: "Real-time Collaboration",
+      description: "Listen together with friends in synchronized rooms",
+      color: "text-purple-300",
+    },
+    {
       icon: Share,
       title: "Easy Sharing",
-      description: "Share rooms with links, codes, or QR codes",
+      description: "Share rooms with links and unique codes",
       color: "text-cyan-300",
     },
   ];

@@ -55,6 +55,7 @@ const songSchema = new Schema({
   duration: { type: Number },
   cover: { type: String },
   url: { type: String },
+  spotifyId: { type: String, unique: true, sparse: true },
 });
 export const Song = model("Song", songSchema);
 

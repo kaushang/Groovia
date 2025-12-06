@@ -1,6 +1,6 @@
 import { useParams, useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -333,39 +333,38 @@ export default function Room() {
     };
   }, [roomId, userId, toast, queryClient]);
 
-  // const joinRoomMutation = useMutation({
-  //   mutationFn: () =>
-  //     apiRequest("POST", `/api/rooms/${roomId}/join`, { userId: currentUser.id }),
-  //   onSuccess: () => {
-  //     queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
-  //   },
-  //   onError: () => {
-  //     // Silently fail - user might already be a member
-  //   },
-  // });
-
-  // // Auto-join room when component loads
-  // useEffect(() => {
-  //   if (room && roomId) {
-  //     joinRoomMutation.mutate();
-  //   }
-  // }, [room?.id]);
-
-  const { data: searchResults = [], isLoading: isSearching } = useQuery({
+  const {
+    data,
+    isLoading: isSearching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
     queryKey: ["/search", { q: searchQuery }],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       const res = await axios.get<any>("/search", {
-        params: { q: searchQuery },
+        params: { q: searchQuery, offset: pageParam },
       });
       return res.data.tracks;
     },
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === 10 ? allPages.length * 10 : undefined;
+    },
     enabled: searchQuery.length > 0,
+    initialPageParam: 0,
   });
 
+  const searchResults = data?.pages.flat() || [];
+
   const addToQueueMutation = useMutation({
-    mutationFn: (songId: string) =>
+    mutationFn: (song: any) =>
       apiRequest("POST", `/api/rooms/${roomId}/queue`, {
-        songId,
+        spotifyId: song.id,
+        title: song.name,
+        artist: Array.isArray(song.artists) ? song.artists.join(", ") : song.artists,
+        cover: song.image,
+        duration: song.duration,
+        url: song.preview_url,
         addedBy: userId,
       }),
     onSuccess: () => {
@@ -396,13 +395,6 @@ export default function Room() {
     },
   });
 
-  // const voteMutation = useMutation({
-  //   mutationFn: ({ queueItemId, voteType }: { queueItemId: string; voteType: 'up' | 'down' }) =>
-  //     apiRequest("POST", `/api/queue/${queueItemId}/vote`, { userId, voteType }),
-  //   onSuccess: () => {
-  //     queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
-  //   },
-  // });
   const voteMutation = useMutation({
     mutationFn: async ({ queueItemId, voteType }: { queueItemId: string; voteType: "up" | "down"; }) => {
       if (!roomId || !userId) throw new Error("Missing required data");
@@ -539,10 +531,10 @@ export default function Room() {
 
 
   return (
-    <div className="h-screen flex flex-col pt-6 pb-8 overflow-hidden">
+    <div className="h-screen flex flex-col pt-4 pb-8 overflow-hidden">
       {/* Room Header */}
-      <div className="container mx-auto px-12">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 w-[100%]">
+      <div className="container mx-auto px-6">
+        <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center mb-4 w-[100%]">
           <div>
             <h1
               className="text-2xl font-bold text-white"
@@ -574,6 +566,9 @@ export default function Room() {
               </Button>
             </p>
           </div>
+
+
+
           <div className="flex flex-wrap gap-3">
             <Button
               size="sm"
@@ -582,7 +577,7 @@ export default function Room() {
               disabled={leaveRoomMutation.isPending}
               data-testid="button-leave-room"
             >
-              <LogOut className="w-4 h-4 mr-2" />
+              <LogOut className="w-4 h-4" />
               {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
             </Button>
             <LeaveRoomModal
@@ -650,23 +645,22 @@ export default function Room() {
       {/* Three Column Layout */}
       <div className="grid lg:grid-cols-3 gap-6 px-12 flex-1 min-h-0 pb-6">
         {/* Search and Add Songs */}
-        <GlassPanel className="p-6 h-[80vh] flex flex-col">
-          {/* <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
+        <GlassPanel className="p-4 h-[85vh] flex flex-col">
+          <h2 className="text-2xl font-bold mb-2 flex items-center justify-center text-white">
             <Search className="w-6 h-6 mr-3 text-purple-300" />
             Add Songs
-          </h2> */}
+          </h2>
 
-          {/* Search Bar */}
-          <div className="relative mb-6">
+          <div className="relative mb-2">
             <Input
               type="text"
-              placeholder="Search for songs, artists, or albums..."
+              placeholder="Search for songs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/10 border-white/20 text-white placeholder:text-white focus:ring-2 focus:ring-purple-400 pl-12"
+              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400"
               data-testid="input-search-songs"
             />
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           </div>
 
           {/* Search Results */}
@@ -676,44 +670,62 @@ export default function Room() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
               </div>
             ) : searchResults.length > 0 ? (
-              searchResults.map((song: any) => (
-                <div
-                  key={song.id}
-                  className="flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group cursor-pointer"
-                  data-testid={`search-result-${song.id}`}
-                >
-                  <img
-                    src={song.image}
-                    alt={`${song.name} artwork`}
-                    className="w-12 h-12 rounded-lg object-cover mr-4"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm text-white">
-                      {song.name}
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      {song.artists.map((artist: string, i: number) => (
-                        <span key={i}>
-                          {artist}
-                          {i < song.artists.length - 1 && ", "}
-                        </span>
-                      ))}
-                    </p>
-                  </div>
-                  <div className="text-gray-400 text-xs mr-3">
-                    {formatTime(song.duration / 1000)}
-                  </div>
-                  <Button
-                    // size="sm"
-                    variant="ghost"
-                    onClick={() => addToQueueMutation.mutate(song.id)}
-                    className="h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-purple-500 to-blue-500 p-2 rounded-[50%]"
-                    data-testid={`button-add-song-${song.id}`}
+              <>
+                {searchResults.map((song: any) => (
+                  <div
+                    key={song.id}
+                    className="flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group"
+                    data-testid={`search-result-${song.id}`}
                   >
-                    <Plus className="w-4 h-4 text-white" />
-                  </Button>
-                </div>
-              ))
+                    <img
+                      src={song.image}
+                      alt={`${song.name} artwork`}
+                      className="w-12 h-12 rounded-lg object-cover mr-4"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-white">
+                        {song.name}
+                      </p>
+                      <p className="text-gray-400 text-xs">
+                        {song.artists.map((artist: string, i: number) => (
+                          <span key={i}>
+                            {artist}
+                            {i < song.artists.length - 1 && ", "}
+                          </span>
+                        ))}
+                      </p>
+                    </div>
+                    <div className="text-gray-400 text-xs mr-3">
+                      {formatTime(song.duration / 1000)}
+                    </div>
+                    <Button
+                      // size="sm"
+                      variant="ghost"
+                      onClick={() => addToQueueMutation.mutate(song)}
+                      className="h-10 w-10 opacity-0 group-hover:opacity-100 hover:bg-purple-700 transition-opacity bg-purple-600 rounded-[50%]"
+                      data-testid={`button-add-song-${song.id}`}
+                    >
+                      <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+                    </Button>
+                  </div>
+                ))}
+
+                {hasNextPage && (
+                  <div
+                    onClick={() => fetchNextPage()}
+                    className="text-center pt-2 mr-1 mx-auto cursor-pointer text-sm transition-colors border-t border-white/10 mt-2"
+                  >
+                    {isFetchingNextPage ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                        <span>Loading more...</span>
+                      </div>
+                    ) : (
+                      <span className="text-purple-400 hover:text-purple-500">more results</span>
+                    )}
+                  </div>
+                )}
+              </>
             ) : searchQuery.length > 0 ? (
               <div className="h-full flex items-center justify-center min-h-[200px]">
                 <p className="text-gray-400">No results found</p>
@@ -746,7 +758,7 @@ export default function Room() {
         />
 
         {/* Now Playing */}
-        <GlassPanel className="p-6 h-[80vh] flex flex-col items-center text-center overflow-y-auto">
+        <GlassPanel className="p-6 h-[85vh] flex flex-col items-center text-center overflow-y-auto">
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
             <Play className="w-6 h-6 mr-3 text-green-400" />
             Now Playing
@@ -761,7 +773,7 @@ export default function Room() {
                   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=280&h=280&fit=crop&crop=center"
                 }
                 alt={`${activeSong.song.title} artwork`}
-                className="w-70 h-70 rounded-xl shadow-xl object-cover"
+                className="w-80 h-80 rounded-xl"
                 data-testid="current-song-artwork"
               />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -795,7 +807,7 @@ export default function Room() {
               <div className="w-full mb-4">
                 <div className="flex justify-between text-sm text-gray-400 mb-2">
                   <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration || activeSong.song.duration || 0)}</span>
+                  <span>{formatTime(duration || activeSong.song.duration / 1000 || 0)}</span>
                 </div>
                 <div
                   className="w-full bg-white/20 rounded-full h-2 cursor-pointer relative group"
@@ -825,7 +837,7 @@ export default function Room() {
                 </Button>
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-purple-500 to-blue-500 p-4 rounded-full btn-glow"
+                  className="bg-purple-600 rounded-full"
                   onClick={() => setIsPlaying(!isPlaying)}
                   data-testid="button-play-pause"
                 >
@@ -854,7 +866,7 @@ export default function Room() {
         </GlassPanel>
 
         {/* Queue List */}
-        <GlassPanel className="p-6 h-[80vh] flex flex-col">
+        <GlassPanel className="p-6 h-[85vh] flex flex-col">
           <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Music className="w-6 h-6 mr-3 text-blue-300" />
             Up Next
@@ -882,12 +894,9 @@ export default function Room() {
                   return (
                     <motion.div
                       layout
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      // initial={{ opacity: 0, y: 20 }}
                       key={item._id || item.id}
-                      className="flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20"
+                      className={`flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 ${item.isPlaying ? 'bg-green-500/15 border border-green-500' : ''}`}
                     >
                       <div className="text-gray-400 text-sm w-8 text-center mr-1">
                         {index + 1}
@@ -903,17 +912,12 @@ export default function Room() {
                       <div className="flex-1">
                         <p className="font-medium text-sm text-white flex items-center gap-2">
                           {item.song?.title || "Unknown Title"}
-                          {item.isPlaying && (
-                            <span className="text-[10px] font-bold text-green-400 border border-green-400/30 px-1.5 py-0.5 rounded-full bg-green-400/10 uppercase tracking-wider">
-                              Playing
-                            </span>
-                          )}
                         </p>
                         <p className="text-gray-400 text-xs">
                           {item.song?.artist || "Unknown Artist"}
                         </p>
-                        <p className="text-gray-500 text-xs">
-                          Added by <span>{item.username}</span>
+                        <p className="text-white/60 text-xs">
+                          Added by <span>{item?.username || "Unknown"}</span>
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -953,7 +957,7 @@ export default function Room() {
                           <ChevronDown className="w-4 h-4" />
                           <span className="mr-1">{item.downvotes ?? 0}</span>
                         </Button>
-                        {(item.addedBy == userId) && (
+                        {((item.addedBy?._id || item.addedBy) == userId) && (
                           <Button
                             variant="ghost"
                             size="sm"

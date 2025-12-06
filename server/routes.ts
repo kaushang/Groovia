@@ -88,6 +88,8 @@ export async function registerRoutes(
       const token = await getSpotifyToken();
 
       // 2. Call Spotify Search API
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+
       const response = await axios.get("https://api.spotify.com/v1/search", {
         headers: {
           Authorization: `Bearer ${token}`
@@ -95,7 +97,8 @@ export async function registerRoutes(
         params: {
           q: query,
           type: "track",
-          limit: 10
+          limit: 10,
+          offset: offset
         }
       });
 
@@ -109,8 +112,6 @@ export async function registerRoutes(
         preview_url: track.preview_url,
         duration: track.duration_ms
       }));
-      console.log("❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️\n");
-      console.log(tracks);
       res.json({ tracks });
     } catch (error: any) {
       console.error(error?.response?.data || error.message);
@@ -490,17 +491,43 @@ export async function registerRoutes(
   app.post("/api/rooms/:roomId/queue", async (req, res) => {
     try {
       const roomId = req.params.roomId;
-      const { songId, addedBy } = req.body;
+      const { songId, addedBy, spotifyId, title, artist, cover, duration, url } = req.body;
 
       const user = await User.findById(addedBy);
-      if (!songId || !addedBy || !user) {
-        return res.status(400).json({ message: "songId, addedBy are required and user must exist" });
+      if (!addedBy || !user) {
+        return res.status(400).json({ message: "addedBy is required and user must exist" });
       }
 
-      const song = await Song.findById(songId);
+      let song;
+
+      // Logic to find or create song
+      if (spotifyId) {
+        song = await Song.findOne({ spotifyId });
+        if (!song) {
+          // Create new song if it doesn't exist
+          if (!title || !artist) {
+            return res.status(400).json({ message: "Missing song metadata for creation" });
+          }
+          song = new Song({
+            title,
+            artist,
+            cover,
+            duration,
+            url,
+            spotifyId
+          });
+          await song.save();
+        }
+      } else if (songId) {
+        // Fallback to legacy Mongo ID lookup
+        song = await Song.findById(songId);
+      }
+
       if (!song) {
         return res.status(404).json({ message: "Song not found" });
       }
+
+      const finalSongId = song._id;
 
       // Determine if a song is already playing in this room
       const existingRoom = await Room.findById(roomId);
@@ -511,7 +538,7 @@ export async function registerRoutes(
         {
           $push: {
             queueItems: {
-              song: songId,
+              song: finalSongId,
               username: user.username,
               addedBy: user._id,
               upvotes: 0,
@@ -534,7 +561,7 @@ export async function registerRoutes(
         roomId,
         queueItems: updatedRoom.queueItems,
         newSong: {
-          songId,
+          songId: finalSongId,
           username: user.username,
           song: song,
           addedBy: addedBy,
@@ -564,19 +591,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to add song to queue" });
     }
   });
-  //     console.log(9);
-  //     await room.save();
-  //     console.log(10);
-  //     res.json({
-  //       message: "Vote recorded successfully",
-  //       queueItem,
-  //     });
-  //     console.log(11);
-  //   } catch (error) {
-  //     console.error("❌ Error recording vote:", error);
-  //     res.status(400).json({ message: "321Failed to vote" });
-  //   }
-  // });
+  
   app.post("/api/queue/:queueItemId/vote", async (req, res) => {
     try {
       const { queueItemId } = req.params;
