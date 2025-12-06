@@ -30,12 +30,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import LeaveRoomModal from "@/components/leave-room-modal";
 
-import { Label } from "@/components/ui/label";
+
 import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -599,39 +597,53 @@ export default function Room() {
 
       {/* Join Room Dialog */}
       <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
-        <DialogContent className="sm:max-w-md glass-panel border-white/10 text-white">
+        <DialogContent
+          className="glass-panel border-white/20 bg-gray text-white max-w-[364px] sm:max-w-md [&>button]:hidden"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
-            <DialogTitle>Join Room</DialogTitle>
-            <DialogDescription className="text-gray-300">
-              Enter your username to join this music room.
-            </DialogDescription>
+            <DialogTitle className="text-3xl font-bold mb-0 text-center">
+              Join Room
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex items-center space-x-2 py-4">
-            <div className="grid flex-1 gap-2">
-              <Label htmlFor="username" className="sr-only">
-                Username
-              </Label>
+
+          <div className="space-y-4 pt-4">
+            <div>
               <Input
                 id="username"
-                placeholder="Enter your username"
+                placeholder="Enter Username"
                 value={joinUsername}
-                onChange={(e) => setJoinUsername(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                onChange={(e) => {
+                  let value = e.target.value;
+                  if (value.length > 16) value = value.slice(0, 16);
+                  setJoinUsername(value);
+                }}
+                className="bg-white/10 border-white/20 placeholder:text-white-400 text-lg tracking-widest mt-2 p-5"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleJoinRoom();
                 }}
               />
             </div>
+
+            <div className="flex space-x-3">
+              <Button
+                type="button"
+                onClick={() => setLocation("/")}
+                variant="ghost"
+                className="flex-1 glass-panel hover:bg-white/10 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleJoinRoom}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600"
+              >
+                Join Room
+              </Button>
+            </div>
           </div>
-          <DialogFooter className="sm:justify-start">
-            <Button
-              type="button"
-              onClick={handleJoinRoom}
-              className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-            >
-              Join Room
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
