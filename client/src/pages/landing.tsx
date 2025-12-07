@@ -8,7 +8,6 @@ import CreateRoomModal from "@/components/create-room-modal";
 import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Room } from "@shared/schema";
 import { FaPlus } from "react-icons/fa";
 import { BiDoorOpen } from "react-icons/bi";
 
@@ -67,43 +66,41 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center">
-      <div className="text-center max-w-4xl mx-auto">
+    <div className="min-h-screen flex flex-col py-12 px-6 md:justify-center items-center w-full">
+      <div className="text-center max-w-4xl mx-auto w-full">
         {/* Hero Logo and Animation */}
-        <div className="mb-8 relative">
-          <div className="text-8xl md:text-9xl font-700 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent mb-[-30px]">
-            {/* <Music className="inline-block mr-4 h-20 w-20 md:h-24 md:w-24" /> */}
+        <div className="w-full text-center md:h-fit mb-12">
+          <div className="text-5xl sm:text-7xl md:text-8xl font-bold">
             Groovia
           </div>
+          <h2 className="text-xl md:text-3xl mt-2 font-light text-gray-200 animate-pulse-soft px-2">
+            Because music is better together
+          </h2>
         </div>
 
-        {/* Tagline */}
-        <h2 className="text-2xl md:text-3xl font-light text-gray-200 mb-12 animate-pulse-soft">
-          Because music is better together
-        </h2>
 
         {/* Main Action Buttons */}
-        <div className="flex flex-col md:flex-row gap-6 justify-center items-center mb-16">
+        <div className="flex flex-col md:flex-row md:gap-6 gap-4 justify-center items-center mb-12">
           <Button
             onClick={() => setShowCreateModal(true)}
             size="lg"
-            className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-white-500 px-8 py-6 text-xl font-semibold group"
+            className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-white-500 md:px-8 md:py-7 text-xl py-7 font-semibold group"
             disabled={createRoomMutation.isPending}
             data-testid="button-create-room"
           >
-            <span className="">
+            <span>
               <FaPlus style={{ width: "18px", height: "18px" }} />
             </span>
             {createRoomMutation.isPending ? "Creating..." : "Create Room"}
           </Button>
-          
+
           <Button
             onClick={() => setShowJoinModal(true)}
             size="lg"
-            className="w-full md:w-auto px-8 py-6 text-xl font-semibold bg-gradient-to-r from-purple-600 to-white-500 text-white"
+            className="w-full md:w-auto text-xl font-semibold bg-gradient-to-r from-purple-600 to-white-500 md:px-8 md:py-7 py-7 text-white"
             data-testid="button-join-room"
           >
-            <span className="mr-2">
+            <span>
               <BiDoorOpen style={{ width: "22px", height: "22px" }} />
             </span>
             Join Room
@@ -111,18 +108,16 @@ export default function Landing() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full pb-6 md:pb-0">
           {features.map((feature, index) => {
             const IconComponent = feature.icon;
             return (
               <GlassPanel
                 key={index}
-                className="p-6 text-center group  transition-transform duration-100"
+                className="p-6 text-center group transition-transform duration-100"
                 data-testid={`feature-card-${index}`}
               >
-                <div
-                  className={`text-4xl mb-4 ${feature.color}`}
-                >
+                <div className={`text-4xl mb-4 ${feature.color}`}>
                   <IconComponent className="w-12 h-12 mx-auto" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>

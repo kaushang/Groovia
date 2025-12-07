@@ -96,15 +96,15 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <Input
               id="username"
               type="text"
               value={username}
               onChange={handleUsernameChange}
-              placeholder="Enter Username"
-              className="bg-white/10 border-white/20 placeholder:text-white-400 text-lg tracking-widest mt-2 p-5"
+              placeholder="Enter Name"
+              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide mt-2 p-6"
               data-testid="input-user-name"
             />
           </div>
@@ -115,24 +115,24 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
               value={roomCode}
               onChange={handleCodeChange}
               placeholder="Enter 6-digit Room Code"
-              className="bg-white/10 border-white/20 placeholder:text-white-400 text-lg tracking-widest mt-2 p-5"
+              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide mt-2 p-6"
               data-testid="input-room-code"
             />
           </div>
 
-          <div className="flex space-x-3">
+          <div className="flex space-x-2">
             <Button
               type="button"
               onClick={onClose}
               variant="ghost"
-              className="flex-1 glass-panel hover:bg-white/10 hover:text-white"
+              className="flex-1 glass-panel hover:bg-white/10 hover:text-white p-6 md:text-[16px]"
               data-testid="button-cancel"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600"
+              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 p-6 md:text-[16px]"
               disabled={joinRoomMutation.isPending}
               data-testid="button-join"
             >

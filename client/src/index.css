@@ -41,7 +41,7 @@
   --font-serif: Georgia, serif;
   --font-mono: 'JetBrains Mono', monospace;
   --radius: 0.75rem;
-  
+
   /* Groovia custom colors */
   --purple-deep: hsl(260 60% 45%);
   --blue-bright: hsl(217 91% 60%);
@@ -107,10 +107,11 @@
   .glass-panel {
     @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl;
   }
+
   .glass-panel-nav {
     @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-b-xl;
   }
-  
+
   .glass-panel-subtle {
     @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-lg;
   }
@@ -119,15 +120,15 @@
     @apply transition-all duration-300;
     box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
   }
-  
+
   .btn-glow:hover {
     @apply -translate-y-0.5 scale-105;
     box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5);
   }
 
-  .gradient-bg {
+  /* .gradient-bg {
     background: var(--gradient-primary);
-  }
+  } */
 
   .gradient-animated-bg {
     background: var(--gradient-primary);
@@ -180,27 +181,47 @@
 }
 
 @keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes glow {
-  from { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
-  to { box-shadow: 0 0 30px rgba(139, 92, 246, 0.6); }
+  from {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+
+  to {
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.6);
+  }
 }
 
-.soundwave {
+/* .soundwave {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   animation: wave 2s linear infinite;
-}
+} */
 
-@keyframes wave {
+/* @keyframes wave {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
-}
+} */
