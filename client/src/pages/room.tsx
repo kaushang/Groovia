@@ -65,6 +65,7 @@ export default function Room() {
   const [joinUsername, setJoinUsername] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [activeTab, setActiveTab] = useState<'search' | 'player' | 'queue'>('player');
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
@@ -609,18 +610,23 @@ export default function Room() {
     <div className="h-screen flex flex-col pt-4 pb-8 overflow-hidden">
       {/* Room Header */}
       <div className="container mx-auto px-6">
-        <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center mb-4 w-[100%]">
-          <div>
+        <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center mt-2 mb-8 md:mb-4 w-full pt-2 md:pt-0">
+          <div className="flex flex-col items-center md:items-start text-center md:text-left z-10 w-full md:w-auto">
             <h1
-              className="text-2xl font-bold text-white"
+              className="text-3xl md:text-2xl font-bold text-white mb-3 md:mb-1 tracking-tight drop-shadow-lg"
               data-testid="room-name"
             >
-              Room: {room.name}
+              {room.name}
             </h1>
-            <p className="text-gray-300 flex items-center ">
-              {listenerCount} listeners • Room Code:
+            <div className="flex items-center text-sm font-medium text-gray-200 bg-white/10 md:bg-transparent px-4 py-1.5 md:p-0 rounded-full backdrop-blur-md md:backdrop-blur-none border border-white/10 md:border-none shadow-sm md:shadow-none transition-all hover:bg-white/20 md:hover:bg-transparent">
+              <Users className="w-3.5 h-3.5 mr-2 md:hidden text-purple-300" />
+              <span className="flex items-center">
+                {listenerCount} <span className="hidden md:inline ml-1">listeners</span>
+              </span>
+              <span className="mx-2 text-white/30">•</span>
+              <span className="text-gray-400 mr-2 md:hidden text-sm uppercase tracking-wider">Code</span>
               <span
-                className="font-monorounded text-sm ml-2"
+                className="font-mono font-bold tracking-wider text-white"
                 data-testid="room-code"
               >
                 {room.code}
@@ -628,7 +634,7 @@ export default function Room() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 ml-2 hover:bg-white/10"
+                className="h-5 w-5 ml-2 hover:bg-white/20 text-gray-400 hover:text-white rounded-full"
                 onClick={() => {
                   navigator.clipboard.writeText(room.code);
                   toast({
@@ -637,24 +643,37 @@ export default function Room() {
                   });
                 }}
               >
-                <Copy className="h-3 w-3 text-gray-400" />
+                <Copy className="h-3 w-3" />
               </Button>
-            </p>
+            </div>
           </div>
 
-
-
-          <div className="flex flex-wrap gap-3">
+          <div className="absolute top-1 right-0 md:static md:block z-20">
+            {/* Mobile Leave Button (Icon Only) */}
             <Button
-              size="sm"
-              className="bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500"
+              size="icon"
+              variant="ghost"
+              className="md:hidden text-white/70 hover:text-red-400 hover:bg-white/10 w-12 h-12 rounded-full p-0 transition-colors"
               onClick={() => setShowLeaveDialog(true)}
               disabled={leaveRoomMutation.isPending}
-              data-testid="button-leave-room"
+              aria-label="Leave Room"
             >
-              <LogOut className="w-4 h-4" />
-              {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
+              <LogOut className="w-7 h-7" strokeWidth={2.5} />
             </Button>
+
+            {/* Desktop Leave Button */}
+            <div className="hidden md:flex flex-wrap gap-3">
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 shadow-lg shadow-red-900/20 border-0"
+                onClick={() => setShowLeaveDialog(true)}
+                disabled={leaveRoomMutation.isPending}
+                data-testid="button-leave-room"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
+              </Button>
+            </div>
             <LeaveRoomModal
               isOpen={showLeaveDialog}
               onClose={() => setShowLeaveDialog(false)}
@@ -717,10 +736,10 @@ export default function Room() {
         </DialogContent>
       </Dialog>
 
-      {/* Three Column Layout */}
-      <div className="grid lg:grid-cols-3 gap-6 px-12 flex-1 min-h-0 pb-6">
+      {/* Three Column Layout - Adaptive Grid/Tabs */}
+      <div className="grid lg:grid-cols-3 gap-6 lg:px-12 px-4 flex-1 min-h-0 pb-24 lg:pb-6 relative w-full">
         {/* Search and Add Songs */}
-        <GlassPanel className="p-4 h-[85vh] flex flex-col">
+        <GlassPanel className={`p-4 h-[70vh] lg:h-[80vh] flex flex-col ${activeTab === 'search' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-2 flex items-center justify-center text-white">
             <Search className="w-6 h-6 mr-3 text-purple-300" />
             Add Songs
@@ -819,7 +838,6 @@ export default function Room() {
           </div>
         </GlassPanel>
 
-        {/* Audio Player - Hidden but functional */}
         {/* Audio Player - Hidden but functional, only for Creator */}
         {(room?.createdBy === userId || (typeof room?.createdBy === 'object' && room?.createdBy?._id === userId)) && (
           <audio
@@ -846,7 +864,7 @@ export default function Room() {
         )}
 
         {/* Now Playing */}
-        <GlassPanel className="p-6 h-[85vh] flex flex-col items-center text-center overflow-y-auto">
+        <GlassPanel className={`p-6 h-[70vh] lg:h-[80vh] flex flex-col items-center text-center overflow-y-auto ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
             <Play className="w-6 h-6 mr-3 text-green-400" />
             Now Playing
@@ -925,7 +943,7 @@ export default function Room() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-12 h-12 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
+                    className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
                     onClick={handlePrevious}
                   >
                     <SkipBack className="w-8 h-8" strokeWidth={1.5} />
@@ -962,7 +980,7 @@ export default function Room() {
         </GlassPanel>
 
         {/* Queue List */}
-        <GlassPanel className="p-6 h-[85vh] flex flex-col">
+        <GlassPanel className={`p-6 h-[70vh] lg:h-[80vh] flex items-center flex-col ${activeTab === 'queue' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Music className="w-6 h-6 mr-3 text-blue-300" />
             Up Next
@@ -1077,6 +1095,43 @@ export default function Room() {
             )}
           </div>
         </GlassPanel>
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="lg:hidden fixed bottom-6 left-4 right-4 h-16 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl flex items-center justify-around z-50 shadow-2xl safe-pb">
+        <button
+          onClick={() => setActiveTab("search")}
+          className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "search" ? "text-purple-400 scale-110" : "text-gray-400 hover:text-white"
+            }`}
+        >
+          <Search className="w-6 h-6 mb-1" strokeWidth={activeTab === "search" ? 2.5 : 2} />
+          <span className="text-[10px] font-medium tracking-wide">Add Songs</span>
+          {activeTab === "search" && (
+            <span className="absolute -bottom-1 w-1 h-1 bg-purple-400 rounded-full" />
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab("player")}
+          className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "player" ? "text-green-400 scale-110" : "text-gray-400 hover:text-white"
+            }`}
+        >
+          <div className={`p-3 rounded-full transition-all ${activeTab === "player" ? "bg-green-400/20 shadow-[0_0_15px_rgba(74,222,128,0.3)]" : ""}`}>
+            <Play className={`w-6 h-6 ${activeTab === "player" ? "fill-current" : ""}`} strokeWidth={activeTab === "player" ? 2.5 : 2} />
+          </div>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("queue")}
+          className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "queue" ? "text-blue-400 scale-110" : "text-gray-400 hover:text-white"
+            }`}
+        >
+          <Music className="w-6 h-6 mb-1" strokeWidth={activeTab === "queue" ? 2.5 : 2} />
+          <span className="text-[10px] font-medium tracking-wide">Queue</span>
+          {activeTab === "queue" && (
+            <span className="absolute -bottom-1 w-1 h-1 bg-blue-400 rounded-full" />
+          )}
+        </button>
       </div>
     </div>
   );
