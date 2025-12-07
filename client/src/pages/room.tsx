@@ -56,6 +56,7 @@ export default function Room() {
   const [searchParams] = useSearchParams();
   const socketRef = useRef<Socket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playerRef = useRef<any>(null);
   const [location] = useLocation();
   const userIdParam = searchParams.get("user");
   const [userId, setUserId] = useState<string | null>(userIdParam);
@@ -82,11 +83,6 @@ export default function Room() {
       if (storedUserId === userIdParam) {
         setUserId(userIdParam);
       } else {
-        // If it doesn't match (or we have no session), ignore URL param and show dialog
-        // unless we have a valid stored session that ISN'T in the URL (edge case, but let's stick to "ignore URL if not match")
-        // Actually, if we have a stored session, we could just use that?
-        // User said: "Room Id is not needed as the url already has room id. And the user id that the url contains gets ignored and gets replaced with the current user's id"
-
         if (storedUserId) {
           // We have a session, but URL has different ID. Let's assume we use our session.
           setUserId(storedUserId);
@@ -387,6 +383,7 @@ export default function Room() {
 
   useEffect(() => {
     if (activeSong) {
+      setYoutubeVideoId(null); // Reset video ID to show loading state
       const artistName = Array.isArray(activeSong.song.artists) ? activeSong.song.artists.join(" ") : activeSong.song.artist;
       searchYouTube(`${activeSong.song.title} ${artistName}`);
     } else {
@@ -503,6 +500,17 @@ export default function Room() {
     },
   });
 
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      audioRef.current?.pause();
+      playerRef.current?.pauseVideo();
+    } else {
+      audioRef.current?.play().catch((e) => console.log("Audio playback failed:", e));
+      playerRef.current?.playVideo();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
   const handleNext = () => {
     if (activeSong && socketRef.current && roomId) {
       socketRef.current.emit("songEnded", {
@@ -516,21 +524,29 @@ export default function Room() {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
     }
+    if (playerRef.current) {
+      playerRef.current.seekTo(0);
+    }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || !activeSong) return;
+    if (!activeSong) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
     const percentage = x / width;
 
-    // Use stored duration or fallback to song metadata
-    const totalDuration = duration || activeSong.song.duration || 0;
+    // Use stored duration or fallback to song metadata (converted to seconds if needed)
+    const songDuration = activeSong.song.duration ? activeSong.song.duration / 1000 : 0;
+    const totalDuration = duration || songDuration || 0;
     const newTime = percentage * totalDuration;
 
-    audioRef.current.currentTime = newTime;
+    if (audioRef.current) audioRef.current.currentTime = newTime;
+    if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+      playerRef.current.seekTo(newTime, true);
+    }
+
     setCurrentTime(newTime);
   };
 
@@ -543,6 +559,27 @@ export default function Room() {
       }
     }
   }, [isPlaying, activeSong]);
+
+  // Sync YouTube progress
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    const updateProgress = () => {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+        const time = playerRef.current.getCurrentTime();
+        const dur = playerRef.current.getDuration();
+        if (typeof time === 'number') setCurrentTime(time);
+        if (dur) setDuration(dur);
+      }
+    };
+
+    if (youtubeVideoId) {
+      updateProgress();
+      interval = setInterval(updateProgress, 100);
+    }
+    return () => clearInterval(interval);
+  }, [youtubeVideoId]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
@@ -818,9 +855,7 @@ export default function Room() {
           {activeSong ? (
             <>
               {/* YouTube Player */}
-              {/* YouTube Player */}
-              {/* YouTube Player */}
-              {youtubeVideoId && (
+              {youtubeVideoId ? (
                 <div className="w-full mb-4">
                   {(room?.createdBy === userId || (typeof room?.createdBy === 'object' && room?.createdBy?._id === userId)) ? (
                     <YouTube
@@ -830,7 +865,16 @@ export default function Room() {
                         width: '100%',
                         playerVars: {
                           autoplay: 1,
+                          controls: 0,
                         },
+                      }}
+                      onReady={(e: { target: any; }) => {
+                        playerRef.current = e.target;
+                      }}
+                      onStateChange={(e: { data: number; }) => {
+                        // Sync state with player events (1 = playing, 2 = paused)
+                        if (e.data === 1) setIsPlaying(true);
+                        if (e.data === 2) setIsPlaying(false);
                       }}
                       onEnd={handleNext}
                       className="rounded-xl w-full"
@@ -849,101 +893,66 @@ export default function Room() {
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="w-full h-[315px] aspect-video flex flex-col items-center justify-center bg-white/5 rounded-xl mb-4">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-400 mb-3"></div>
+                  <p className="text-white/80 animate-pulse text-sm font-medium">Playing...</p>
+                </div>
               )}
 
-              {/* TEMPORARILY COMMENTED OUT EXISTING CODE - wrapped to disable
-              {/* Album Artwork 
-              <div className="relative mb-5 group">                <img
-                src={
-                  activeSong.song.cover ||
-                  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=280&h=280&fit=crop&crop=center"
-                }
-                alt={`${activeSong.song.title} artwork`}
-                className="w-80 h-80 rounded-xl"
-                data-testid="current-song-artwork"
-              />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </div>
-
-              {/* Song Info 
-              <div className="mb-2">
-                <h3
-                  className="text-2xl font-bold mb-2 text-white"
-                  data-testid="current-song-title"
-                >
-                  {activeSong.song.title}
-                </h3>
-                <p
-                  className="text-gray-300 text-lg"
-                  data-testid="current-song-artist"
-                >
-                  {activeSong.song.artist}
-                </p>
-                {activeSong.song.album && (
-                  <p
-                    className="text-gray-400 text-sm mt-1"
-                    data-testid="current-song-album"
-                  >
-                    {activeSong.song.album}
-                  </p>
-                )}
-              </div>
-
-              {/* Progress Bar 
-              <div className="w-full mb-4">
-                <div className="flex justify-between text-sm text-gray-400 mb-2">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration || activeSong.song.duration / 1000 || 0)}</span>
-                </div>
-                <div
-                  className="w-full bg-white/20 rounded-full h-2 cursor-pointer relative group"
-                  onClick={handleSeek}
-                  data-testid="progress-bar-container"
-                >
-                  <div className="absolute inset-0 rounded-full hover:bg-white/10 transition-colors"></div>
+              {/* Playback Controls & Progress */}
+              <div className="w-full max-w-xl bg-white/10 backdrop-blur-xl rounded-[2rem] pl-6 pr-6 pt-4 pb-4 border border-white/10 mt-6">
+                {/* Progress Bar */}
+                <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-4 gap-3">
+                  <span className="w-10 text-right">{formatTime(currentTime)}</span>
                   <div
-                    className="bg-gradient-to-r from-purple-400 to-blue-400 h-2 rounded-full transition-all relative"
-                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                    className="flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer relative group flex items-center"
+                    onClick={handleSeek}
                   >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="absolute inset-0 rounded-full hover:bg-white/5 transition-colors"></div>
+                    <div
+                      className="bg-white h-full rounded-full relative"
+                      style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                    >
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
+                    </div>
                   </div>
+                  <span className="w-10 text-left">{formatTime(duration)}</span>
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center justify-center gap-6">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-12 h-12 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
+                    onClick={handlePrevious}
+                  >
+                    <SkipBack className="w-8 h-8" strokeWidth={1.5} />
+                  </Button>
+
+                  <Button
+                    size="icon"
+                    className="w-16 h-12 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all flex items-center justify-center p-0"
+                    onClick={handlePlayPause}
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-7 h-7 fill-current" />
+                    ) : (
+                      <Play className="w-7 h-7 fill-current ml-1" />
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
+                    onClick={handleNext}
+                  >
+                    <SkipForward className="w-8 h-8" strokeWidth={1.5} />
+                  </Button>
                 </div>
               </div>
-
-              {/* Playback Controls 
-              <div className="flex items-center space-x-6 mb-6">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-2xl hover:text-purple-300 transition-colors"
-                  data-testid="button-previous"
-                  onClick={handlePrevious}
-                >
-                  <SkipBack className="w-6 h-6" />
-                </Button>
-                <Button
-                  size="lg"
-                  className="bg-purple-600 rounded-full"
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  data-testid="button-play-pause"
-                >
-                  {isPlaying ? (
-                    <Pause className="w-8 h-8" />
-                  ) : (
-                    <Play className="w-8 h-8" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-2xl hover:text-purple-300 transition-colors"
-                  data-testid="button-next"
-                  onClick={handleNext}
-                >
-                  <SkipForward className="w-6 h-6" />
-                </Button>
-              </div>
-              */}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center">
