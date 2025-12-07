@@ -24,6 +24,7 @@ import {
   Shuffle,
   Trash2,
   Copy,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -40,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Song } from "@shared/schema";
 import { io, Socket } from "socket.io-client";
 import { AnimatePresence, motion } from "framer-motion";
+import YouTube from "react-youtube";
 
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -47,6 +49,7 @@ export default function Room() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [isPlaying, setIsPlaying] = useState(true);
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [listenerCount, setListenerCount] = useState(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -356,6 +359,41 @@ export default function Room() {
 
   const searchResults = data?.pages.flat() || [];
 
+  const searchYouTube = async (query: string) => {
+    try {
+      console.log(`Searching YouTube for: ${query}`);
+      const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+
+      if (!apiKey) {
+        console.error("YouTube API Key is missing! Make sure VITE_YOUTUBE_API_KEY is set in .env");
+        return;
+      }
+
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(
+          query
+        )}&key=${apiKey}`
+      );
+      const data = await response.json();
+      console.log("YouTube Search Results:", data);
+
+      if (data.items && data.items.length > 0) {
+        setYoutubeVideoId(data.items[0].id.videoId);
+      }
+    } catch (error) {
+      console.error("Error searching YouTube:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSong) {
+      const artistName = Array.isArray(activeSong.song.artists) ? activeSong.song.artists.join(" ") : activeSong.song.artist;
+      searchYouTube(`${activeSong.song.title} ${artistName}`);
+    } else {
+      setYoutubeVideoId(null);
+    }
+  }, [activeSong?._id]);
+
   const addToQueueMutation = useMutation({
     mutationFn: (song: any) =>
       apiRequest("POST", `/api/rooms/${roomId}/queue`, {
@@ -651,16 +689,24 @@ export default function Room() {
             Add Songs
           </h2>
 
-          <div className="relative mb-2">
+          <div className="relative space-y-2 mb-4">
             <Input
               type="text"
               placeholder="Search for songs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400"
+              className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400"
               data-testid="input-search-songs"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-4 text-white hover:text-white/60 transition-colors"
+                title="Clear search"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           {/* Search Results */}
@@ -701,7 +747,9 @@ export default function Room() {
                     <Button
                       // size="sm"
                       variant="ghost"
-                      onClick={() => addToQueueMutation.mutate(song)}
+                      onClick={() => {
+                        addToQueueMutation.mutate(song);
+                      }}
                       className="h-10 w-10 opacity-0 group-hover:opacity-100 hover:bg-purple-700 transition-opacity bg-purple-600 rounded-[50%]"
                       data-testid={`button-add-song-${song.id}`}
                     >
@@ -735,27 +783,30 @@ export default function Room() {
         </GlassPanel>
 
         {/* Audio Player - Hidden but functional */}
-        <audio
-          ref={audioRef}
-          src={activeSong?.song?.url}
-          onEnded={() => {
-            if (activeSong && socketRef.current) {
-              console.log("Song ended, requesting next...", activeSong);
-              socketRef.current.emit("songEnded", {
-                roomId,
-                songId: activeSong.song._id || activeSong.song.id,
-              });
-            }
-          }}
-          onPlay={() => setIsPlaying(true)}
-          onPause={(e) => {
-            if (!e.currentTarget.ended) {
-              setIsPlaying(false);
-            }
-          }}
-          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        />
+        {/* Audio Player - Hidden but functional, only for Creator */}
+        {(room?.createdBy === userId || (typeof room?.createdBy === 'object' && room?.createdBy?._id === userId)) && (
+          <audio
+            ref={audioRef}
+            src={activeSong?.song?.url}
+            onEnded={() => {
+              if (activeSong && socketRef.current) {
+                console.log("Song ended, requesting next...", activeSong);
+                socketRef.current.emit("songEnded", {
+                  roomId,
+                  songId: activeSong.song._id || activeSong.song.id,
+                });
+              }
+            }}
+            onPlay={() => setIsPlaying(true)}
+            onPause={(e) => {
+              if (!e.currentTarget.ended) {
+                setIsPlaying(false);
+              }
+            }}
+            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          />
+        )}
 
         {/* Now Playing */}
         <GlassPanel className="p-6 h-[85vh] flex flex-col items-center text-center overflow-y-auto">
@@ -766,7 +817,42 @@ export default function Room() {
 
           {activeSong ? (
             <>
-              {/* Album Artwork */}
+              {/* YouTube Player */}
+              {/* YouTube Player */}
+              {/* YouTube Player */}
+              {youtubeVideoId && (
+                <div className="w-full mb-4">
+                  {(room?.createdBy === userId || (typeof room?.createdBy === 'object' && room?.createdBy?._id === userId)) ? (
+                    <YouTube
+                      videoId={youtubeVideoId}
+                      opts={{
+                        height: '315',
+                        width: '100%',
+                        playerVars: {
+                          autoplay: 1,
+                        },
+                      }}
+                      onEnd={handleNext}
+                      className="rounded-xl w-full"
+                      iframeClassName="rounded-xl w-full"
+                    />
+                  ) : (
+                    <div className="relative w-full aspect-video rounded-xl overflow-hidden group">
+                      <img
+                        src={`https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`}
+                        alt="Now Playing"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-1 rounded text-xs text-white">
+                        Playing on Host's Device
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TEMPORARILY COMMENTED OUT EXISTING CODE - wrapped to disable
+              {/* Album Artwork 
               <div className="relative mb-5 group">                <img
                 src={
                   activeSong.song.cover ||
@@ -779,7 +865,7 @@ export default function Room() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
 
-              {/* Song Info */}
+              {/* Song Info 
               <div className="mb-2">
                 <h3
                   className="text-2xl font-bold mb-2 text-white"
@@ -803,7 +889,7 @@ export default function Room() {
                 )}
               </div>
 
-              {/* Progress Bar */}
+              {/* Progress Bar 
               <div className="w-full mb-4">
                 <div className="flex justify-between text-sm text-gray-400 mb-2">
                   <span>{formatTime(currentTime)}</span>
@@ -824,7 +910,7 @@ export default function Room() {
                 </div>
               </div>
 
-              {/* Playback Controls */}
+              {/* Playback Controls 
               <div className="flex items-center space-x-6 mb-6">
                 <Button
                   variant="ghost"
@@ -857,6 +943,7 @@ export default function Room() {
                   <SkipForward className="w-6 h-6" />
                 </Button>
               </div>
+              */}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center">
