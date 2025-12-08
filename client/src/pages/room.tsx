@@ -631,22 +631,22 @@ export default function Room() {
     <div className="h-screen flex flex-col pt-4 pb-8 overflow-hidden">
       {/* Room Header */}
       <div className="container mx-auto px-6">
-        <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center mt-4 mb-1 md:mb-4 w-full pt-2 md:pt-0">
+        <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center mt-4 md:mb-4 w-full pt-2 md:pt-0">
           <div className="flex flex-col md:items-start md:text-left z-10 w-full md:w-auto">
             <h1
-              className="text-3xl md:text-2xl text-center font-bold text-white mb-1 md:mb-1 tracking-tight drop-shadow-lg"
+              className="text-3xl md:text-2xl text-center font-bold text-white mb-2 md:mt-2 md:mb-1 tracking-tight drop-shadow-lg"
               data-testid="room-name"
             >
               {room.name}
             </h1>
-            <div className="flex items-center justify-between text-sm font-medium px-4 text-gray-200 md:bg-transparent rounded-lg bg-white/10 py-1.5 mt-3 mb-2 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all hover:bg-white/20 md:hover:bg-transparent">
+            <div className="flex items-center justify-between text-sm font-medium px-4 text-gray-200 md:bg-transparent rounded-lg bg-white/10 py-1.5 mb-2 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all hover:bg-white/20 md:hover:bg-transparent">
               <div className="flex items-center flex-row">
-                <Users className="w-3.5 h-3.5 mr-2 md:hidden text-purple-300" />
+                <Users className="w-3.5 h-3.5 mr-2  text-purple-300" />
                 <span className="flex items-center">
                   {listenerCount} <span className="hidden md:inline ml-1">listeners</span>
                 </span>
                 <span className="mx-2 text-white/30">•</span>
-                <span className="text-gray-400 mr-2 md:hidden text-sm uppercase tracking-wider">Code</span>
+                <span className="text-gray-400 mr-2 text-sm uppercase tracking-wider">Code</span>
                 <span
                   className="font-mono font-bold tracking-wider text-white"
                   data-testid="room-code"
@@ -818,22 +818,17 @@ export default function Room() {
                     <img
                       src={song.image}
                       alt={`${song.name} artwork`}
-                      className="w-12 h-12 rounded-sm object-cover mr-4"
+                      className="w-12 h-12 rounded-sm object-cover mr-2"
                     />
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-white">
-                        {song.name}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        {song.artists.map((artist: string, i: number) => (
-                          <span key={i}>
-                            {artist}
-                            {i < song.artists.length - 1 && ", "}
-                          </span>
-                        ))}
-                      </p>
+                    <div className="flex-1 min-w-0 mr-2">
+                      <DoubleMarquee
+                        text1={song.name}
+                        text2={Array.isArray(song.artists) ? song.artists.join(", ") : song.artists}
+                        className1="font-semibold text-sm text-white"
+                        className2="text-gray-400 text-xs"
+                      />
                     </div>
-                    <div className="text-gray-400 text-xs mr-3">
+                    <div className="text-gray-400 text-xs mr-2">
                       {formatTime(song.duration / 1000)}
                     </div>
                     <Button
@@ -963,7 +958,7 @@ export default function Room() {
           </div>
 
           {/* Playback Controls & Progress - Always Visible */}
-          <div className={`w-full max-w-xl bg-white/10 backdrop-blur-xl rounded-[2rem] pl-6 pr-6 pt-4 pb-4 border border-white/10 mt-6 transition-all duration-300 ${!activeSong ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+          <div className={`w-full max-w-xl bg-white/10 backdrop-blur-xl rounded-[1rem] pl-6 pr-6 pt-4 pb-4 border border-white/10 mt-6 transition-all duration-300 ${!activeSong ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
             {/* Progress Bar */}
             <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-4 gap-3">
               <span className="w-10 text-right">{formatTime(currentTime)}</span>

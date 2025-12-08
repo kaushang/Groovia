@@ -44,10 +44,10 @@ export default function DoubleMarquee({
     const isOverflowing = text1Width > containerWidth || text2Width > containerWidth;
 
     // Calculate common segment width
-    const gap = 36; // 2rem
+    const gap = 24; // 2rem
     // Speed setup
     const speed = 30; // pixels per second
-    const pauseDuration = 1; // 1 second
+    const pauseDuration = 2; // 1 second
 
     // Generate a unique ID for this animation instance style
     // Use a simple random string to avoid React version dependency issues with useId
@@ -57,8 +57,8 @@ export default function DoubleMarquee({
 
     // Helper to render a specific line
     const renderLine = (text: string, width: number, className: string, suffix: string) => {
-        // If NO text overflows in the whole component, don't animate anything
-        if (!isOverflowing) {
+        // Only animate if this SPECIFIC line overflows
+        if (width <= containerWidth) {
             return (
                 <div className={`truncate ${className}`}>
                     {text}
