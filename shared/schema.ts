@@ -56,6 +56,7 @@ const songSchema = new Schema({
   cover: { type: String },
   url: { type: String },
   spotifyId: { type: String, unique: true, sparse: true },
+  youtubeId: { type: String },
 });
 export const Song = model("Song", songSchema);
 

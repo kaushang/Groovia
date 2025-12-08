@@ -422,6 +422,32 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/songs/:songId/youtube-id", async (req, res) => {
+    try {
+      const { songId } = req.params;
+      const { youtubeId } = req.body;
+
+      if (!youtubeId) {
+        return res.status(400).json({ message: "YouTube ID is required" });
+      }
+
+      const song = await Song.findByIdAndUpdate(
+        songId,
+        { youtubeId },
+        { new: true }
+      );
+
+      if (!song) {
+        return res.status(404).json({ message: "Song not found" });
+      }
+
+      res.json({ success: true, song });
+    } catch (error) {
+      console.error("Error saving YouTube ID:", error);
+      res.status(500).json({ message: "Failed to save YouTube ID" });
+    }
+  });
+
   app.delete("/api/queue/:queueItemId", async (req, res) => {
     try {
       const { queueItemId } = req.params;
@@ -591,7 +617,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to add song to queue" });
     }
   });
-  
+
   app.post("/api/queue/:queueItemId/vote", async (req, res) => {
     try {
       const { queueItemId } = req.params;

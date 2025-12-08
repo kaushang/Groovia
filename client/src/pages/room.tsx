@@ -1,4 +1,5 @@
 import { useParams, useLocation } from "wouter";
+import DoubleMarquee from "@/components/double-marquee";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -48,7 +49,7 @@ export default function Room() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [listenerCount, setListenerCount] = useState(0);
   const { toast } = useToast();
@@ -356,7 +357,7 @@ export default function Room() {
 
   const searchResults = data?.pages.flat() || [];
 
-  const searchYouTube = async (query: string) => {
+  const searchYouTube = async (query: string, songId?: string) => {
     try {
       console.log(`Searching YouTube for: ${query}`);
       const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
@@ -375,7 +376,18 @@ export default function Room() {
       console.log("YouTube Search Results:", data);
 
       if (data.items && data.items.length > 0) {
-        setYoutubeVideoId(data.items[0].id.videoId);
+        const videoId = data.items[0].id.videoId;
+        setYoutubeVideoId(videoId);
+
+        // Save to server if we have a songId
+        if (songId) {
+          try {
+            await axios.post(`/api/songs/${songId}/youtube-id`, { youtubeId: videoId });
+            console.log("✅ Saved YouTube ID to server");
+          } catch (err) {
+            console.error("Failed to save YouTube ID:", err);
+          }
+        }
       }
     } catch (error) {
       console.error("Error searching YouTube:", error);
@@ -384,13 +396,22 @@ export default function Room() {
 
   useEffect(() => {
     if (activeSong) {
-      setYoutubeVideoId(null); // Reset video ID to show loading state
+      // 1. Check if we already have a saved YouTube ID (ZERO API CALLS)
+      if (activeSong.song.youtubeId) {
+        console.log("🎯 Using saved YouTube ID:", activeSong.song.youtubeId);
+        setYoutubeVideoId(activeSong.song.youtubeId);
+        return;
+      }
+
+      // 2. If not, search YouTube and save it
+      setYoutubeVideoId(null);
       const artistName = Array.isArray(activeSong.song.artists) ? activeSong.song.artists.join(" ") : activeSong.song.artist;
-      searchYouTube(`${activeSong.song.title} ${artistName}`);
+      // Pass the song ID so we can save the result
+      searchYouTube(`${activeSong.song.title} ${artistName}`, activeSong.song._id || activeSong.song.id);
     } else {
       setYoutubeVideoId(null);
     }
-  }, [activeSong?._id]);
+  }, [activeSong?._id, activeSong?.song?.youtubeId]);
 
   const addToQueueMutation = useMutation({
     mutationFn: (song: any) =>
@@ -610,56 +631,71 @@ export default function Room() {
     <div className="h-screen flex flex-col pt-4 pb-8 overflow-hidden">
       {/* Room Header */}
       <div className="container mx-auto px-6">
-        <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center mt-2 mb-8 md:mb-4 w-full pt-2 md:pt-0">
-          <div className="flex flex-col items-center md:items-start text-center md:text-left z-10 w-full md:w-auto">
+        <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center mt-4 mb-1 md:mb-4 w-full pt-2 md:pt-0">
+          <div className="flex flex-col md:items-start md:text-left z-10 w-full md:w-auto">
             <h1
-              className="text-3xl md:text-2xl font-bold text-white mb-3 md:mb-1 tracking-tight drop-shadow-lg"
+              className="text-3xl md:text-2xl text-center font-bold text-white mb-1 md:mb-1 tracking-tight drop-shadow-lg"
               data-testid="room-name"
             >
               {room.name}
             </h1>
-            <div className="flex items-center text-sm font-medium text-gray-200 bg-white/10 md:bg-transparent px-4 py-1.5 md:p-0 rounded-full backdrop-blur-md md:backdrop-blur-none border border-white/10 md:border-none shadow-sm md:shadow-none transition-all hover:bg-white/20 md:hover:bg-transparent">
-              <Users className="w-3.5 h-3.5 mr-2 md:hidden text-purple-300" />
-              <span className="flex items-center">
-                {listenerCount} <span className="hidden md:inline ml-1">listeners</span>
-              </span>
-              <span className="mx-2 text-white/30">•</span>
-              <span className="text-gray-400 mr-2 md:hidden text-sm uppercase tracking-wider">Code</span>
-              <span
-                className="font-mono font-bold tracking-wider text-white"
-                data-testid="room-code"
-              >
-                {room.code}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 ml-2 hover:bg-white/20 text-gray-400 hover:text-white rounded-full"
-                onClick={() => {
-                  navigator.clipboard.writeText(room.code);
-                  toast({
-                    title: "Copied!",
-                    description: "Room code copied to clipboard",
-                  });
-                }}
-              >
-                <Copy className="h-3 w-3" />
-              </Button>
+            <div className="flex items-center justify-between text-sm font-medium px-4 text-gray-200 md:bg-transparent rounded-lg bg-white/10 py-1.5 mt-3 mb-2 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all hover:bg-white/20 md:hover:bg-transparent">
+              <div className="flex items-center flex-row">
+                <Users className="w-3.5 h-3.5 mr-2 md:hidden text-purple-300" />
+                <span className="flex items-center">
+                  {listenerCount} <span className="hidden md:inline ml-1">listeners</span>
+                </span>
+                <span className="mx-2 text-white/30">•</span>
+                <span className="text-gray-400 mr-2 md:hidden text-sm uppercase tracking-wider">Code</span>
+                <span
+                  className="font-mono font-bold tracking-wider text-white"
+                  data-testid="room-code"
+                >
+                  {room.code}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 ml-2 hover:bg-white/20 text-gray-400 hover:text-white rounded-full"
+                  onClick={() => {
+                    navigator.clipboard.writeText(room.code);
+                    toast({
+                      title: "Copied!",
+                      description: "Room code copied to clipboard",
+                    });
+                  }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+
+              </div>
+              <div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="md:hidden text-white/70 text-red-400 w-12 h-6 -mr-4 rounded-half p-0 transition-colors hover:bg-red-500/30 hover:text-white"
+                  onClick={() => setShowLeaveDialog(true)}
+                  disabled={leaveRoomMutation.isPending}
+                  aria-label="Leave Room"
+                >
+                  <LogOut className="w-8 h-8" strokeWidth={3} />
+                </Button>
+              </div>
             </div>
           </div>
 
-          <div className="absolute top-1 right-0 md:static md:block z-20">
+          <div className="absolute top-0.5 right-0 md:static md:block z-20">
             {/* Mobile Leave Button (Icon Only) */}
-            <Button
+            {/* <Button
               size="icon"
               variant="ghost"
-              className="md:hidden text-white/70 hover:text-red-400 hover:bg-white/10 w-12 h-12 rounded-full p-0 transition-colors"
+              className="md:hidden text-white/70 text-red-400 w-12 h-10 mt-1 -mr-4 rounded-half p-0 transition-colors hover:bg-red-500/30 hover:text-white"
               onClick={() => setShowLeaveDialog(true)}
               disabled={leaveRoomMutation.isPending}
               aria-label="Leave Room"
             >
-              <LogOut className="w-7 h-7" strokeWidth={2.5} />
-            </Button>
+              <LogOut className="w-8 h-8" strokeWidth={3} />
+            </Button> */}
 
             {/* Desktop Leave Button */}
             <div className="hidden md:flex flex-wrap gap-3">
@@ -739,7 +775,7 @@ export default function Room() {
       {/* Three Column Layout - Adaptive Grid/Tabs */}
       <div className="grid lg:grid-cols-3 gap-6 lg:px-12 px-4 flex-1 min-h-0 pb-24 lg:pb-6 relative w-full">
         {/* Search and Add Songs */}
-        <GlassPanel className={`p-4 h-[70vh] lg:h-[80vh] flex flex-col ${activeTab === 'search' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex flex-col ${activeTab === 'search' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-2 flex items-center justify-center text-white">
             <Search className="w-6 h-6 mr-3 text-purple-300" />
             Add Songs
@@ -776,13 +812,13 @@ export default function Room() {
                 {searchResults.map((song: any) => (
                   <div
                     key={song.id}
-                    className="flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group"
+                    className="flex items-center p-2 mr-1 rounded-sm hover:bg-white/10 transition-all group"
                     data-testid={`search-result-${song.id}`}
                   >
                     <img
                       src={song.image}
                       alt={`${song.name} artwork`}
-                      className="w-12 h-12 rounded-lg object-cover mr-4"
+                      className="w-12 h-12 rounded-sm object-cover mr-4"
                     />
                     <div className="flex-1">
                       <p className="font-semibold text-sm text-white">
@@ -806,7 +842,7 @@ export default function Room() {
                       onClick={() => {
                         addToQueueMutation.mutate(song);
                       }}
-                      className="h-10 w-10 opacity-0 group-hover:opacity-100 hover:bg-purple-700 transition-opacity bg-purple-600 rounded-[50%]"
+                      className="h-8 w-8 md:h-10 md:w-10 opacity-1 md:opacity-0 group-hover:opacity-100 hover:bg-purple-700 transition-opacity bg-purple-600 rounded-[50%]"
                       data-testid={`button-add-song-${song.id}`}
                     >
                       <Plus className="w-6 h-6 text-white" strokeWidth={4} />
@@ -864,22 +900,22 @@ export default function Room() {
         )}
 
         {/* Now Playing */}
-        <GlassPanel className={`p-6 h-[70vh] lg:h-[80vh] flex flex-col items-center text-center overflow-y-auto ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex flex-col items-center text-center overflow-y-auto ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
             <Play className="w-6 h-6 mr-3 text-green-400" />
             Now Playing
           </h2>
 
-          {activeSong ? (
-            <>
-              {/* YouTube Player */}
-              {youtubeVideoId ? (
-                <div className="w-full mb-4">
+          {/* Media Area - Fixed container to prevent layout shifts */}
+          <div className="w-full mb-2 min-h-fit">
+            {activeSong ? (
+              youtubeVideoId ? (
+                <div className="w-full">
                   {(room?.createdBy === userId || (typeof room?.createdBy === 'object' && room?.createdBy?._id === userId)) ? (
                     <YouTube
                       videoId={youtubeVideoId}
                       opts={{
-                        height: '315',
+                        height: '100%',
                         width: '100%',
                         playerVars: {
                           autoplay: 1,
@@ -888,6 +924,7 @@ export default function Room() {
                       }}
                       onReady={(e: { target: any; }) => {
                         playerRef.current = e.target;
+                        e.target.playVideo();
                       }}
                       onStateChange={(e: { data: number; }) => {
                         // Sync state with player events (1 = playing, 2 = paused)
@@ -895,99 +932,100 @@ export default function Room() {
                         if (e.data === 2) setIsPlaying(false);
                       }}
                       onEnd={handleNext}
-                      className="rounded-xl w-full"
-                      iframeClassName="rounded-xl w-full"
+                      className="rounded-xl w-full h-[245px] md:h-[315px]"
+                      iframeClassName="rounded-xl w-full h-full"
                     />
                   ) : (
-                    <div className="relative w-full aspect-video rounded-xl overflow-hidden group">
+                    <div className="relative w-full h-[245px] md:h-[315px] rounded-xl overflow-hidden group bg-black/40">
                       <img
                         src={`https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`}
                         alt="Now Playing"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover opacity-80"
                       />
-                      <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-1 rounded text-xs text-white">
+                      <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white border border-white/10">
                         Playing on Host's Device
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="w-full h-[315px] aspect-video flex flex-col items-center justify-center bg-white/5 rounded-xl mb-4">
+                <div className="w-full h-[245px] md:h-[315px] flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-400 mb-3"></div>
                   <p className="text-white/80 animate-pulse text-sm font-medium">Playing...</p>
                 </div>
-              )}
+              )
+            ) : (
+              <div className="w-full h-[245px] md:h-[315px] flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5">
+                <Music className="w-16 h-16 text-white/10 mb-4" />
+                <p className="text-white/40 font-medium">No songs in queue</p>
+              </div>
+            )}
+          </div>
 
-              {/* Playback Controls & Progress */}
-              <div className="w-full max-w-xl bg-white/10 backdrop-blur-xl rounded-[2rem] pl-6 pr-6 pt-4 pb-4 border border-white/10 mt-6">
-                {/* Progress Bar */}
-                <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-4 gap-3">
-                  <span className="w-10 text-right">{formatTime(currentTime)}</span>
-                  <div
-                    className="flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer relative group flex items-center"
-                    onClick={handleSeek}
-                  >
-                    <div className="absolute inset-0 rounded-full hover:bg-white/5 transition-colors"></div>
-                    <div
-                      className="bg-white h-full rounded-full relative"
-                      style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                    >
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
-                    </div>
-                  </div>
-                  <span className="w-10 text-left">{formatTime(duration)}</span>
-                </div>
-
-                {/* Controls */}
-                <div className="flex items-center justify-center gap-6">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
-                    onClick={handlePrevious}
-                  >
-                    <SkipBack className="w-8 h-8" strokeWidth={1.5} />
-                  </Button>
-
-                  <Button
-                    size="icon"
-                    className="w-16 h-12 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all flex items-center justify-center p-0"
-                    onClick={handlePlayPause}
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-7 h-7 fill-current" />
-                    ) : (
-                      <Play className="w-7 h-7 fill-current ml-1" />
-                    )}
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
-                    onClick={handleNext}
-                  >
-                    <SkipForward className="w-8 h-8" strokeWidth={1.5} />
-                  </Button>
+          {/* Playback Controls & Progress - Always Visible */}
+          <div className={`w-full max-w-xl bg-white/10 backdrop-blur-xl rounded-[2rem] pl-6 pr-6 pt-4 pb-4 border border-white/10 mt-6 transition-all duration-300 ${!activeSong ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+            {/* Progress Bar */}
+            <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-4 gap-3">
+              <span className="w-10 text-right">{formatTime(currentTime)}</span>
+              <div
+                className="flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer relative group flex items-center"
+                onClick={handleSeek}
+              >
+                <div className="absolute inset-0 rounded-full hover:bg-white/5 transition-colors"></div>
+                <div
+                  className="bg-white h-full rounded-full relative"
+                  style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                >
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-400">No songs in queue</p>
+              <span className="w-10 text-left">{formatTime(duration)}</span>
             </div>
-          )}
+
+            {/* Controls */}
+            <div className="flex items-center justify-center gap-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
+                onClick={handlePrevious}
+              >
+                <SkipBack className="w-8 h-8" strokeWidth={1.5} />
+              </Button>
+
+              <Button
+                size="icon"
+                className="w-16 h-12 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all flex items-center justify-center p-0"
+                onClick={handlePlayPause}
+              >
+                {isPlaying ? (
+                  <Pause className="w-7 h-7 fill-current" />
+                ) : (
+                  <Play className="w-7 h-7 fill-current ml-1" />
+                )}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
+                onClick={handleNext}
+              >
+                <SkipForward className="w-8 h-8" strokeWidth={1.5} />
+              </Button>
+            </div>
+          </div>
         </GlassPanel>
 
         {/* Queue List */}
-        <GlassPanel className={`p-6 h-[70vh] lg:h-[80vh] flex items-center flex-col ${activeTab === 'queue' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex items-center flex-col ${activeTab === 'queue' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Music className="w-6 h-6 mr-3 text-blue-300" />
             Up Next
           </h2>
 
           {/* Queue Items */}
-          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar w-full">
             <AnimatePresence mode="popLayout">
               {room?.queueItems
                 // .filter removed to include all items
@@ -1006,13 +1044,13 @@ export default function Room() {
                   )?.voteType;
 
                   return (
-                    <motion.div
-                      layout
+                    <div
+                      // layout
                       // initial={{ opacity: 0, y: 20 }}
                       key={item._id || item.id}
-                      className={`flex items-center p-3 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 ${item.isPlaying ? 'bg-green-500/15 border border-green-500' : ''}`}
+                      className={`flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 ${item.isPlaying ? 'bg-green-500/15 hover:bg-green-500/15 border border-green-500' : ''}`}
                     >
-                      <div className="text-gray-400 text-sm w-8 text-center mr-1">
+                      <div className="text-gray-200 text-xs w-2 text-center mr-2">
                         {index + 1}
                       </div>
                       <img
@@ -1021,15 +1059,18 @@ export default function Room() {
                           "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
                         }
                         alt={`${item.song?.title || "Song"} artwork`}
-                        className="w-14 h-14 rounded-lg object-cover mr-3"
+                        className="w-12 h-12 rounded-sm object-cover mr-3"
                       />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm text-white flex items-center gap-2">
-                          {item.song?.title || "Unknown Title"}
-                        </p>
-                        <p className="text-gray-400 text-xs">
+                      <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
+                        <DoubleMarquee
+                          text1={item.song?.title || "Unknown Title"}
+                          text2={item.song?.artist || "Unknown Artist"}
+                          className1="font-medium text-xs md:text-sm text-white"
+                          className2="font-medium text-xs md:text-xs text-gray-400"
+                        />
+                        {/* <p className="text-gray-400 text-xs">
                           {item.song?.artist || "Unknown Artist"}
-                        </p>
+                        </p> */}
                         <p className="text-white/60 text-xs">
                           Added by <span>{item?.username || "Unknown"}</span>
                         </p>
@@ -1083,7 +1124,7 @@ export default function Room() {
                           </Button>
                         )}
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
             </AnimatePresence>
@@ -1116,7 +1157,7 @@ export default function Room() {
           className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "player" ? "text-green-400 scale-110" : "text-gray-400 hover:text-white"
             }`}
         >
-          <div className={`p-3 rounded-full transition-all ${activeTab === "player" ? "bg-green-400/20 shadow-[0_0_15px_rgba(74,222,128,0.3)]" : ""}`}>
+          <div className={`p-3 rounded-full transition-all ${activeTab === "player" ? "bg-green-300/20" : ""}`}>
             <Play className={`w-6 h-6 ${activeTab === "player" ? "fill-current" : ""}`} strokeWidth={activeTab === "player" ? 2.5 : 2} />
           </div>
         </button>
