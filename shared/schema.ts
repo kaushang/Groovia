@@ -71,12 +71,3 @@ const queueItemSchema = new Schema({
   addedAt: { type: Date, default: Date.now }
 });
 export const QueueItem = model("QueueItem", queueItemSchema);
-
-// ==================== VOTES ====================
-const voteSchema = new Schema({
-  queueItemId: { type: Schema.Types.ObjectId, ref: "QueueItem" },
-  userId: { type: Schema.Types.ObjectId, ref: "User" },
-  voteType: { type: String, enum: ["up", "down"], required: true },
-  createdAt: { type: Date, default: Date.now },
-});
-export const Vote = model("Vote", voteSchema);
