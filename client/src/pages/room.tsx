@@ -630,7 +630,7 @@ export default function Room() {
   return (
     <div className="h-screen flex flex-col pt-4 pb-8 overflow-hidden">
       {/* Room Header */}
-      <div className="container mx-auto px-6">
+      <div className="container mx-auto px-4">
         <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center mt-4 md:mb-4 w-full pt-2 md:pt-0">
           <div className="flex flex-col md:items-start md:text-left z-10 w-full md:w-auto">
             <h1
@@ -673,7 +673,7 @@ export default function Room() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="md:hidden text-white/70 text-red-400 w-12 h-6 -mr-4 rounded-half p-0 transition-colors hover:bg-red-500/30 hover:text-white"
+                  className="md:hidden text-white/70 text-red-400 w-10 h-10 -mr-3  rounded-full p-0 transition-colors hover:bg-transparent hover:text-red-400 hover:bg-black/20"
                   onClick={() => setShowLeaveDialog(true)}
                   disabled={leaveRoomMutation.isPending}
                   aria-label="Leave Room"
@@ -685,18 +685,6 @@ export default function Room() {
           </div>
 
           <div className="absolute top-0.5 right-0 md:static md:block z-20">
-            {/* Mobile Leave Button (Icon Only) */}
-            {/* <Button
-              size="icon"
-              variant="ghost"
-              className="md:hidden text-white/70 text-red-400 w-12 h-10 mt-1 -mr-4 rounded-half p-0 transition-colors hover:bg-red-500/30 hover:text-white"
-              onClick={() => setShowLeaveDialog(true)}
-              disabled={leaveRoomMutation.isPending}
-              aria-label="Leave Room"
-            >
-              <LogOut className="w-8 h-8" strokeWidth={3} />
-            </Button> */}
-
             {/* Desktop Leave Button */}
             <div className="hidden md:flex flex-wrap gap-3">
               <Button

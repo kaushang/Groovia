@@ -58,11 +58,6 @@ The project uses **MongoDB** with Mongoose for schema modeling. The architecture
     *   Stores `spotifyId`, `title`, `artist`, `cover` URL, and `duration`.
     *   Prevents redundant API calls if a song is added frequently.
 
-4.  **Votes**
-    *   Tracks user engagement on specific songs.
-    *   Stores `userId`, `queueItemId`, and `voteType` (up/down).
-    *   Used to calculate the "score" of a song to reorder the queue dynamically.
-
 ---
 
 ## 🔗 API Integration
