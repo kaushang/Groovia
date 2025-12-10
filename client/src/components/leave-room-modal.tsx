@@ -26,7 +26,7 @@ export default function LeaveRoomModal({
             <DialogContent className="glass-panel border-white/20 bg-gray text-white max-w-[364px] sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="text-3xl font-bold mb-4 text-center">
-                        Leave Room?
+                        Leaving so soon?
                     </DialogTitle>
                     <DialogDescription className="text-gray-300 text-center text-md mt-4">
                         Are you sure you want to leave this room? <br /> You will stop listening to

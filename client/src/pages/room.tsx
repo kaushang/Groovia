@@ -111,6 +111,29 @@ export default function Room() {
     }
   }, [userIdParam, roomId, setLocation, searchParams]);
 
+  // Handle browser back button
+  useEffect(() => {
+    // Capture the current URL (the Room URL) to restore in case of back navigation
+    const currentUrl = window.location.href;
+
+    // Push a new entry to history stack to trap the back button
+    window.history.pushState(null, "", currentUrl);
+
+    const handlePopState = (event: PopStateEvent) => {
+      // Prevent default navigation
+      event.preventDefault();
+      setShowLeaveDialog(true);
+      // Restore the captured Room URL to ensure we stay on the page
+      window.history.pushState(null, "", currentUrl);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
   const handleJoinRoom = async () => {
     if (!joinUsername.trim() || !room?.code) return;
 

@@ -101,9 +101,12 @@ io.on("connection", (socket) => {
       // Register (or update) this socket
       let user = connectedUsers.get(socket.id);
       if (!user) {
+        // Fetch user from DB to get the real username
+        const dbUser = await User.findById(userId);
+
         user = {
           userId,
-          username: "Unknown", // Ideally fetch from DB
+          username: dbUser?.username || "Unknown",
           socketId: socket.id,
           rooms: new Set(),
         };
