@@ -624,6 +624,13 @@ io.on("connection", (socket) => {
       console.error("Error handling songEnded:", error);
     }
   });
+
+  // Sync playback time
+  socket.on("updateTime", (data: { roomId: string; currentTime: number; duration: number }) => {
+    const { roomId, currentTime, duration } = data;
+    // Broadcast to everyone else in the room (excluding sender)
+    socket.to(roomId).emit("timeUpdated", { currentTime, duration });
+  });
 });
 
 // Add WebSocket-related API endpoints

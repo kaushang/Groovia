@@ -58,6 +58,8 @@ export default function Room() {
   const socketRef = useRef<Socket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playerRef = useRef<any>(null);
+  const lastEmitTimeRef = useRef(0);
+  const isHostRef = useRef(false);
   const [location] = useLocation();
   const userIdParam = searchParams.get("user");
   const [userId, setUserId] = useState<string | null>(userIdParam);
@@ -183,6 +185,15 @@ export default function Room() {
     const mId = m.userId?._id || m.userId;
     return mId === userId;
   })?.userId;
+
+  const isHost = Boolean(room && userId && (
+    (typeof room.createdBy === 'string' && room.createdBy === userId) ||
+    typeof room.createdBy === 'object' && room.createdBy?._id?.toString() === userId.toString()
+  ));
+
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
 
   useEffect(() => {
     if (!roomId || !userId) return;
@@ -345,6 +356,16 @@ export default function Room() {
           title: "Song vote updated",
           description: `${data.votedBy?.username || "Someone"} voted ${data.voteType === "up" ? "👍" : "👎"}`,
         });
+      }
+    });
+
+    // ✅ Sync Time Listener
+    socket.on("timeUpdated", (data) => {
+      // Only non-hosts need to sync from server
+      console.log("⏱️ Received time update:", data);
+      if (!isHostRef.current) {
+        setCurrentTime(data.currentTime);
+        setDuration(data.duration);
       }
     });
 
@@ -546,6 +567,7 @@ export default function Room() {
   });
 
   const handlePlayPause = () => {
+    if (!isHost) return;
     if (isPlaying) {
       audioRef.current?.pause();
       playerRef.current?.pauseVideo();
@@ -557,6 +579,7 @@ export default function Room() {
   };
 
   const handleNext = () => {
+    if (!isHost) return;
     if (activeSong && socketRef.current && roomId) {
       socketRef.current.emit("songEnded", {
         roomId,
@@ -566,6 +589,7 @@ export default function Room() {
   };
 
   const handlePrevious = () => {
+    if (!isHost) return;
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
     }
@@ -575,6 +599,7 @@ export default function Room() {
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isHost) return;
     if (!activeSong) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -615,6 +640,20 @@ export default function Room() {
         const dur = playerRef.current.getDuration();
         if (typeof time === 'number') setCurrentTime(time);
         if (dur) setDuration(dur);
+
+        // Host emits updates
+        if (isHost && socketRef.current && typeof time === 'number') {
+          const now = Date.now();
+          if (now - lastEmitTimeRef.current > 1000) { // Emit every 1s
+            console.log("⏱️ Emitting time update:", time);
+            socketRef.current.emit("updateTime", {
+              roomId,
+              currentTime: time,
+              duration: dur || 0
+            });
+            lastEmitTimeRef.current = now;
+          }
+        }
       }
     };
 
@@ -623,7 +662,7 @@ export default function Room() {
       interval = setInterval(updateProgress, 100);
     }
     return () => clearInterval(interval);
-  }, [youtubeVideoId]);
+  }, [youtubeVideoId, isHost, roomId]);
 
   if (isLoading) {
     return (
@@ -900,7 +939,21 @@ export default function Room() {
                 setIsPlaying(false);
               }
             }}
-            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onTimeUpdate={(e) => {
+              setCurrentTime(e.currentTarget.currentTime);
+              // Host emits updates for audio file
+              if (isHost && socketRef.current) {
+                const now = Date.now();
+                if (now - lastEmitTimeRef.current > 1000) {
+                  socketRef.current.emit("updateTime", {
+                    roomId,
+                    currentTime: e.currentTarget.currentTime,
+                    duration: e.currentTarget.duration
+                  });
+                  lastEmitTimeRef.current = now;
+                }
+              }
+            }}
             onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           />
         )}
@@ -974,15 +1027,17 @@ export default function Room() {
             <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-4 gap-3">
               <span className="w-10 text-right">{formatTime(currentTime)}</span>
               <div
-                className="flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer relative group flex items-center"
+                className={`flex-1 h-1.5 bg-white/10 rounded-full relative group flex items-center ${isHost ? "cursor-pointer" : "cursor-default"}`}
                 onClick={handleSeek}
               >
-                <div className="absolute inset-0 rounded-full hover:bg-white/5 transition-colors"></div>
+                <div className={`absolute inset-0 rounded-full transition-colors ${isHost ? "hover:bg-white/5" : ""}`}></div>
                 <div
                   className="bg-white h-full rounded-full relative"
                   style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                 >
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
+                  {isHost && (
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
+                  )}
                 </div>
               </div>
               <span className="w-10 text-left">{formatTime(duration)}</span>
@@ -993,16 +1048,18 @@ export default function Room() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
+                className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={handlePrevious}
+                disabled={!isHost}
               >
                 <SkipBack className="w-8 h-8" strokeWidth={1.5} />
               </Button>
 
               <Button
                 size="icon"
-                className="w-16 h-12 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all flex items-center justify-center p-0"
+                className="w-16 h-12 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all flex items-center justify-center p-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
                 onClick={handlePlayPause}
+                disabled={!isHost}
               >
                 {isPlaying ? (
                   <Pause className="w-7 h-7 fill-current" />
@@ -1014,8 +1071,9 @@ export default function Room() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform"
+                className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={handleNext}
+                disabled={!isHost}
               >
                 <SkipForward className="w-8 h-8" strokeWidth={1.5} />
               </Button>

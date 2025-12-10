@@ -25,27 +25,27 @@ export default function LeaveRoomModal({
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="glass-panel border-white/20 bg-gray text-white max-w-[364px] sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-3xl font-bold mb-4 text-center">
+                    <DialogTitle className="text-3xl font-bold mb-2 text-center">
                         Leaving so soon?
                     </DialogTitle>
-                    <DialogDescription className="text-gray-300 text-center text-md mt-4">
+                    <DialogDescription className="text-gray-300 text-center text-sm text-center">
                         Are you sure you want to leave this room? <br /> You will stop listening to
                         the music.
                     </DialogDescription>
                 </DialogHeader>
-                <DialogFooter className="flex sm:justify-center gap-3 ">
+                <DialogFooter className="flex space-x-2">
                     <Button
                         type="button"
                         onClick={onClose}
                         variant="ghost"
-                        className="flex-1 glass-panel hover:bg-white/10 hover:text-white"
+                        className="flex-1 glass-panel hover:bg-white/10 hover:text-white p-6 md:text-[16px]"
                     >
                         Cancel
                     </Button>
                     <Button
                         type="button"
                         onClick={onConfirm}
-                        className="flex-1 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white border-none"
+                        className="flex-1 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white p-6 md:text-[16px]"
                         disabled={isLeaving}
                     >
                         {isLeaving ? "Leaving..." : "Leave Room"}

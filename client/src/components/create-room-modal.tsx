@@ -109,7 +109,7 @@ export default function CreateRoomModal({
               value={username}
               onChange={handleUsernameChange}
               placeholder="Enter Name"
-              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide mt-2 p-6"
+              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide mt- p-6"
               data-testid="input-user-name"
             />
           </div>
