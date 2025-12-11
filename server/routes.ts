@@ -50,12 +50,15 @@ export async function registerRoutes(
   server: Server<typeof IncomingMessage, typeof ServerResponse>,
   io: SocketIOServer
 ): Promise<Server> {
-  
+
   // Get room details by ID
   app.get("/api/rooms/:roomId", async (req, res) => {
     try {
       const { roomId } = req.params;
-      const room = await Room.findById(roomId).populate("queueItems.song");
+      const room = await Room.findById(roomId)
+        .populate("queueItems.song")
+        .populate("members.userId", "username")
+        .populate("createdBy", "username");
       if (!room) {
         return res.status(404).json({ message: "Room not found" });
       }
@@ -144,7 +147,10 @@ export async function registerRoutes(
         }
       );
 
-      const updatedRoom = await Room.findOne({ code: req.params.code }); // Fetch the updated room
+      const updatedRoom = await Room.findOne({ code: req.params.code })
+        .populate("queueItems.song")
+        .populate("members.userId", "username")
+        .populate("createdBy", "username");
       res.json({ room: updatedRoom, userId: savedUser._id });
     } catch (error) {
       console.error("Error fetching room:", error);
@@ -282,7 +288,10 @@ export async function registerRoutes(
         const currentListenerCount = rooms.get(roomId)?.size || 0;
 
         // Explicitly re-fetch to ensure population works correctly
-        const finalRoom = await Room.findById(roomId).populate("queueItems.song");
+        const finalRoom = await Room.findById(roomId)
+          .populate("queueItems.song")
+          .populate("members.userId", "username")
+          .populate("createdBy", "username");
 
         if (finalRoom) {
           io.to(roomId).emit("roomUpdated", {
@@ -403,7 +412,10 @@ export async function registerRoutes(
       await room.save();
 
       // Emit update with the new state (including new playing song if applicable)
-      const updatedRoom = await Room.findById(room._id).populate("queueItems.song");
+      const updatedRoom = await Room.findById(room._id)
+        .populate("queueItems.song")
+        .populate("members.userId", "username")
+        .populate("createdBy", "username");
       io.to(room._id.toString()).emit("roomUpdated", updatedRoom);
 
       res.json({ success: true });
@@ -475,7 +487,9 @@ export async function registerRoutes(
           },
         },
         { new: true }
-      ).populate("queueItems.song");
+      ).populate("queueItems.song")
+        .populate("members.userId", "username")
+        .populate("createdBy", "username");
 
       if (!updatedRoom) {
         return res.status(404).json({ message: "Room not found" });
@@ -503,10 +517,6 @@ export async function registerRoutes(
       const roomUpdateData = {
         ...updatedRoom.toObject(),
         listenerCount: currentListenerCount,
-        members: Array.from(rooms.get(roomId) || []).map((socketId) => {
-          const memberUser = connectedUsers.get(socketId);
-          return { userId: memberUser?.userId, username: memberUser?.username, socketId };
-        }),
       };
 
       io.to(roomId).emit("roomUpdated", roomUpdateData);

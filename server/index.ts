@@ -123,51 +123,43 @@ io.on("connection", (socket) => {
       // ✅ Correct listener count
       const currentListenerCount = rooms.get(roomId)!.size;
 
-      // Emit success back to the joining user
-      socket.emit("joinedRoom", {
-        roomId,
-        success: true,
-        listenerCount: currentListenerCount,
-        room: {
-          roomId,
-          listenerCount: currentListenerCount,
-          members: Array.from(rooms.get(roomId) || []).map((socketId) => {
-            const memberUser = connectedUsers.get(socketId);
-            return {
-              userId: memberUser?.userId,
-              username: memberUser?.username,
-              socketId,
-            };
-          }),
-        },
-      });
+      // Fetch the real room state from DB
+      const dbRoom = await Room.findById(roomId)
+        .populate("queueItems.song")
+        .populate("members.userId", "username")
+        .populate("createdBy", "username");
 
-      // ✅ Only notify others if this is a *brand new user*, not reload
-      if (!alreadyInRoom) {
-        socket.to(roomId).emit("userJoined", {
-          user: {
-            userId: user.userId,
-            username: user.username,
-            socketId: socket.id,
-          },
-          userId: user.userId,
+      if (dbRoom) {
+        // Emit success back to the joining user
+        socket.emit("joinedRoom", {
           roomId,
+          success: true,
+          listenerCount: currentListenerCount,
+          room: {
+            ...dbRoom.toObject(),
+            listenerCount: currentListenerCount,
+          },
+        });
+
+        // ✅ Only notify others if this is a *brand new user*, not reload
+        if (!alreadyInRoom) {
+          socket.to(roomId).emit("userJoined", {
+            user: {
+              userId: user.userId,
+              username: user.username,
+              socketId: socket.id,
+            },
+            userId: user.userId,
+            roomId,
+          });
+        }
+
+        // ✅ Always sync absolute state for everyone
+        io.to(roomId).emit("roomUpdated", {
+          ...dbRoom.toObject(),
+          listenerCount: currentListenerCount,
         });
       }
-
-      // ✅ Always sync absolute state for everyone
-      io.to(roomId).emit("roomUpdated", {
-        roomId,
-        listenerCount: currentListenerCount,
-        members: Array.from(rooms.get(roomId) || []).map((socketId) => {
-          const memberUser = connectedUsers.get(socketId);
-          return {
-            userId: memberUser?.userId,
-            username: memberUser?.username,
-            socketId,
-          };
-        }),
-      });
 
       // log(`WebSocket: User ${userId} (${user.username}) joined room ${roomId}`);
     } catch (error) {
@@ -221,7 +213,10 @@ io.on("connection", (socket) => {
 
       // Send updated listener count to remaining users
       try {
-        const room = await Room.findById(roomId).populate("queueItems.song");
+        const room = await Room.findById(roomId)
+          .populate("queueItems.song")
+          .populate("members.userId", "username")
+          .populate("createdBy", "username");
         if (room) {
           const roomUpdateData = {
             ...room.toObject(),
@@ -272,24 +267,23 @@ io.on("connection", (socket) => {
         }
 
         await room.save();
-        await room.populate("queueItems.song");
 
-        // Broadcast update
-        const currentListenerCount = rooms.get(roomId)?.size || 0;
-        const roomUpdateData = {
-          ...room.toObject(),
-          listenerCount: currentListenerCount,
-          members: Array.from(rooms.get(roomId) || []).map((socketId) => {
-            const memberUser = connectedUsers.get(socketId);
-            return {
-              userId: memberUser?.userId,
-              username: memberUser?.username,
-              socketId,
-            };
-          }),
-        };
+        // Broadcast update with full population
+        const updatedRoom = await Room.findById(roomId)
+          .populate("queueItems.song")
+          .populate("members.userId", "username")
+          .populate("createdBy", "username");
 
-        io.to(roomId).emit("roomUpdated", roomUpdateData);
+        if (updatedRoom) {
+          const currentListenerCount = rooms.get(roomId)?.size || 0;
+          const roomUpdateData = {
+            ...updatedRoom.toObject(),
+            listenerCount: currentListenerCount,
+          };
+          io.to(roomId).emit("roomUpdated", roomUpdateData);
+        }
+
+
       }
     } catch (error) {
       console.error("Error handling songEnded:", error);

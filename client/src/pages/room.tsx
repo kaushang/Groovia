@@ -33,6 +33,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import LeaveRoomModal from "@/components/leave-room-modal";
 
 
@@ -701,24 +712,21 @@ export default function Room() {
             >
               {room.name}
             </h1>
-            <div className="flex items-center justify-between text-sm font-medium px-4 text-gray-200 md:bg-transparent rounded-lg bg-white/10 py-1.5 mb-2 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all hover:bg-white/20 md:hover:bg-transparent">
+
+            <div className="flex items-center justify-between text-sm font-medium px-4 text-gray-200 md:bg-transparent rounded-xl border border-white/10 bg-white/10  mb-2 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all md:hover:bg-transparent">
               <div className="flex items-center flex-row">
-                <Users className="w-3.5 h-3.5 mr-2  text-purple-300" />
-                <span className="flex items-center">
-                  {listenerCount} <span className="hidden md:inline ml-1">listeners</span>
-                </span>
-                <span className="mx-2 text-white/30">•</span>
-                <span className="text-gray-400 mr-2 text-sm uppercase tracking-wider">Code</span>
+                <span className="text-gray-400 mr-2 text-sm uppercase tracking-wider">Room Code:</span>
                 <span
                   className="font-mono font-bold tracking-wider text-white"
                   data-testid="room-code"
                 >
                   {room.code}
                 </span>
+
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-5 w-5 ml-2 hover:bg-white/20 text-gray-400 hover:text-white rounded-full"
+                  className="h-5 w-5 ml-1 hover:bg-white/20 text-gray-400 hover:text-white rounded-full"
                   onClick={() => {
                     navigator.clipboard.writeText(room.code);
                     toast({
@@ -729,13 +737,85 @@ export default function Room() {
                 >
                   <Copy className="h-3 w-3" />
                 </Button>
+                <span className="mx-2 text-white/30">•</span>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/10 rounded-full bg-white/10">
+                      <Users className="w-3.5 h-3.5 mr-2 text-purple-300 group-hover:text-purple-400" />
+                      <span className="flex items-center group-hover:underline decoration-white/30 underline-offset-4">
+                        {listenerCount} <span className="md:inline ml-1">listeners</span>
+                      </span>
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent className="w-full sm:max-w-md border-l border-white/10 bg-black/80 backdrop-blur-xl text-white p-0 shadow-2xl">
+                    <SheetHeader className="p-4 border-b border-white/10">
+                      <SheetTitle className="text-2xl font-bold text-white flex items-center gap-2 mt-4 -mb-1">
+                        Room Members
+                      </SheetTitle>
+                      <SheetDescription className="text-gray-400 -mt-2">
+                        See who's vibing in the room right now.
+                      </SheetDescription>
+                    </SheetHeader>
 
+                    <ScrollArea className="h-[calc(100vh-120px)] p-2">
+                      <div className="space-y-4">
+                        {/* Room Members List */}
+                        <div className="space-y-2">
+                          <div className="flex flex-row items-center">
+                            {/* <Users className="w-6 h-6 text-purple-400" /> */}
+                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2 ml-2">Listeners</h4>
+                            <Badge variant="outline" className=" ml-2 border-purple-300/50 text-purple-300">
+                              {room?.members?.length || 0}
+                            </Badge>
+                          </div>
+                          {[...(room?.members || [])].sort((a: any, b: any) => {
+                            const aId = (a.userId?._id || a.userId)?.toString();
+                            const bId = (b.userId?._id || b.userId)?.toString();
+                            const cId = (room.createdBy?._id || room.createdBy)?.toString();
+                            if (aId === cId) return -1;
+                            if (bId === cId) return 1;
+                            return 0;
+                          }).map((member: any) => {
+                            const user = member.userId;
+                            const isMe = (user._id || user) === userId;
+                            const cId = (room.createdBy?._id || room.createdBy)?.toString();
+                            const mId = (user._id || user)?.toString();
+                            const isHost = mId === cId;
+
+                            return (
+                              <div key={user._id || user} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group">
+                                <Avatar className="h-9 w-9 border border-white/10">
+                                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || user}`} />
+                                  <AvatarFallback className="bg-gray-800 text-gray-300">
+                                    {(user.username?.[0] || "U").toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-2">
+                                    {user.username || "Unknown"}
+                                    {isMe && <Badge variant="secondary" className="text-[12px] h-4 px-2 bg-white/10 text-white/80">You</Badge>}
+                                    {isHost && (
+                                      <>
+                                        <span className="text-[12px] text-purple-300 font-medium bg-purple-300/10 px-2 rounded-full">Room Host</span>
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </ScrollArea>
+                  </SheetContent>
+                </Sheet>
               </div>
+
               <div>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="md:hidden text-white/70 text-red-400 w-10 h-10 -mr-3  rounded-full p-0 transition-colors hover:bg-transparent hover:text-red-400 hover:bg-black/20"
+                  className="md:hidden text-white/70 text-red-400 w-10 h-10 -mr-3 rounded-full p-0 transition-colors hover:bg-transparent hover:text-red-400 hover:bg-black/20"
                   onClick={() => setShowLeaveDialog(true)}
                   disabled={leaveRoomMutation.isPending}
                   aria-label="Leave Room"
@@ -852,7 +932,7 @@ export default function Room() {
           </div>
 
           {/* Search Results */}
-          <div className="space-y-3 flex-1 overflow-y-auto mr-1 custom-scrollbar">
+          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
             {isSearching ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
@@ -903,10 +983,10 @@ export default function Room() {
                     {isFetchingNextPage ? (
                       <div className="flex items-center justify-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
-                        <span>Loading more...</span>
+                        <span className="text-sm text-purple-400 hover:text-purple-500">Loading more...</span>
                       </div>
                     ) : (
-                      <span className="text-purple-400 hover:text-purple-500">more results</span>
+                      <span className="text-purple-400 hover:text-purple-500 text-sm">more results</span>
                     )}
                   </div>
                 )}
