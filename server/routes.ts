@@ -50,6 +50,8 @@ export async function registerRoutes(
   server: Server<typeof IncomingMessage, typeof ServerResponse>,
   io: SocketIOServer
 ): Promise<Server> {
+  
+  // Get room details by ID
   app.get("/api/rooms/:roomId", async (req, res) => {
     try {
       const { roomId } = req.params;
@@ -63,6 +65,7 @@ export async function registerRoutes(
     }
   });
 
+  // Search for songs using Spotify API
   app.get("/search", async (req, res) => {
     try {
       const query = req.query.q;
@@ -106,7 +109,7 @@ export async function registerRoutes(
     }
   });
 
-  // Join room
+  // Join an existing room using a specific room code
   app.post("/api/rooms/code/:code", async (req, res) => {
     try {
       const room = await Room.findOne({ code: req.params.code });
@@ -149,7 +152,7 @@ export async function registerRoutes(
     }
   });
 
-  // Create room
+  // Create a new room and initialize it with the creator as a member
   app.post("/api/rooms", async (req, res) => {
     try {
       const { name, username } = req.body;
@@ -226,6 +229,7 @@ export async function registerRoutes(
     }
   });
 
+  // Allow a user to leave a room and handle room cleanup if empty
   app.post("/api/rooms/:roomId/leave", async (req, res) => {
     try {
       const { userId } = req.body;
@@ -316,7 +320,7 @@ export async function registerRoutes(
     }
   });
 
-  // Song routes
+  // Update a song's YouTube ID
   app.post("/api/songs/:songId/youtube-id", async (req, res) => {
     try {
       const { songId } = req.params;
@@ -343,10 +347,11 @@ export async function registerRoutes(
     }
   });
 
+  // Remove a song from the queue
   app.delete("/api/queue/:queueItemId", async (req, res) => {
     try {
       const { queueItemId } = req.params;
-      const { userId } = req.body; // Expect userId in body
+      const { userId } = req.body;
 
       // Find room containing this queue item
       const room = await Room.findOne({ "queueItems._id": queueItemId });
@@ -392,7 +397,6 @@ export async function registerRoutes(
           return scoreB - scoreA;
         });
 
-        // Play the first one
         room.queueItems[0].isPlaying = true;
       }
 
@@ -408,7 +412,8 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to remove from queue" });
     }
   });
-  // Add song to queue (HTTP endpoint)
+
+  // Add a new song to the specific room's queue
   app.post("/api/rooms/:roomId/queue", async (req, res) => {
     try {
       const roomId = req.params.roomId;
@@ -513,6 +518,7 @@ export async function registerRoutes(
     }
   });
 
+  // Vote (upvote/downvote) on a song in the queue
   app.post("/api/queue/:queueItemId/vote", async (req, res) => {
     try {
       const { queueItemId } = req.params;
