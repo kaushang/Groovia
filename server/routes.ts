@@ -5,13 +5,14 @@ import {
   ServerResponse,
   type Server,
 } from "http";
-// import { storage } from "./storage";
-import { User, Room, Song, QueueItem, Vote } from "@shared/schema";
+import { User, Room, Song } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
 import mongoose from "mongoose";
 import { log } from "./vite";
 import axios from "axios";
 import qs from "qs";
+import { Server as SocketIOServer } from "socket.io";
+import { connectedUsers, rooms } from "./state";
 
 export async function getSpotifyToken() {
   const tokenUrl = "https://accounts.spotify.com/api/token";
@@ -32,7 +33,6 @@ export async function getSpotifyToken() {
   };
 
   const response = await axios.post(tokenUrl, data, { headers });
-  console.log(response.data.access_token);
   return response.data.access_token;
 }
 
@@ -44,8 +44,6 @@ function generateRoomCode(): string {
   }
   return code;
 }
-import { Server as SocketIOServer } from "socket.io";
-import { connectedUsers, rooms } from "./state";
 
 export async function registerRoutes(
   app: Express,
@@ -65,17 +63,6 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/spotify-token-test", async (req, res) => {
-    try {
-      const token = await getSpotifyToken();
-      console.log(token);
-      res.json({ token });
-    } catch (err: any) {
-      console.error(err?.response?.data || err.message);
-      res.status(500).json({ error: "Failed to fetch token" });
-    }
-  });
-
   app.get("/search", async (req, res) => {
     try {
       const query = req.query.q;
@@ -84,10 +71,10 @@ export async function registerRoutes(
         return res.json({ tracks: [] });
       }
 
-      // 1. Get access token
+      // Get access token
       const token = await getSpotifyToken();
 
-      // 2. Call Spotify Search API
+      // Call Spotify Search API
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
 
       const response = await axios.get("https://api.spotify.com/v1/search", {
@@ -102,7 +89,7 @@ export async function registerRoutes(
         }
       });
 
-      // 3. Format results
+      // Format results
       const tracks = response.data.tracks.items.map((track: any) => ({
         id: track.id,
         name: track.name,
@@ -119,10 +106,10 @@ export async function registerRoutes(
     }
   });
 
-  // ✅ JOIN ROOM
+  // Join room
   app.post("/api/rooms/code/:code", async (req, res) => {
     try {
-      const room = await Room.findOne({ code: req.params.code }); // search by code field
+      const room = await Room.findOne({ code: req.params.code });
       const { username } = req.body;
 
       if (!room) {
@@ -162,7 +149,7 @@ export async function registerRoutes(
     }
   });
 
-  // ✅ CREATE ROOM
+  // Create room
   app.post("/api/rooms", async (req, res) => {
     try {
       const { name, username } = req.body;
@@ -214,9 +201,6 @@ export async function registerRoutes(
         userId: savedUser._id, // Return just the ID, not the whole user object
       });
 
-      // WebSocket notifications (after response is sent)
-      // Note: Only emit to relevant users, not globally
-
       // Optionally notify about room creation (if you have a global rooms list)
       io.emit("roomCreated", {
         room: {
@@ -229,9 +213,6 @@ export async function registerRoutes(
         },
       });
 
-      // The creator will join via WebSocket when they navigate to the room
-      // No need to emit roomInvitation to the creator here since they're immediately joining
-
       console.log(
         `Room created: ${savedRoom.name} (${savedRoom.code}) by ${savedUser.username}`
       );
@@ -242,34 +223,6 @@ export async function registerRoutes(
         message: "Failed to create room",
         error: error instanceof Error ? error.message : "Unknown error",
       });
-    }
-  });
-  app.post("/api/rooms/:roomId/join", async (req, res) => {
-    try {
-      const { userId } = req.body;
-      const roomId = req.params.roomId;
-
-      const room = await Room.findById(roomId);
-      if (!room) {
-        return res.status(404).json({ message: "Room not found" });
-      }
-
-      // Check if user is already a member
-      const isMember = room.members.some(m => m.userId.toString() === userId);
-      if (!isMember) {
-        await Room.findByIdAndUpdate(roomId, {
-          $push: {
-            members: {
-              userId: userId,
-              joinedAt: new Date()
-            }
-          }
-        });
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      res.status(400).json({ message: "Failed to join room" });
     }
   });
 
@@ -362,66 +315,8 @@ export async function registerRoutes(
       });
     }
   });
+
   // Song routes
-  app.get("/api/songs/search", async (req, res) => {
-    // await Song.insertMany([
-    //   {
-    //     title: "P-POP CULTURE",
-    //     artist: "Karan Aujla",
-    //     duration: 212,
-    //     cover: "/covers/p-pop_culture.jpg",
-    //     url: "/songs/p-pop_culture.mp3",
-    //   },
-    //   {
-    //     title: "At Peace",
-    //     artist: "Karan Aujla",
-    //     duration: 173,
-    //     cover: "/covers/at_peace.jpg",
-    //     url: "/songs/at_peace.mp3",
-    //   },
-    //   {
-    //     title: "52 Bars",
-    //     artist: "Karan Aujla",
-    //     duration: 222,
-    //     cover: "/covers/52_bars.jpg",
-    //     url: "/songs/52_bars.mp3",
-    //   },
-    //   {
-    //     title: "Courtside",
-    //     artist: "Karan Aujla",
-    //     duration: 172,
-    //     cover: "/covers/courtside.jpg",
-    //     url: "/songs/courtside.mp3",
-    //   },
-    //   {
-    //     title: "winning speech",
-    //     artist: "Karan Aujla",
-    //     duration: 238,
-    //     cover: "/covers/winning_speech.jpg",
-    //     url: "/songs/winning_speech.mp3",
-    //   },
-    // ]);
-
-    try {
-      const { q } = req.query;
-      if (!q || typeof q !== "string") {
-        return res.status(400).json({ message: "Search query required" });
-      }
-
-      // Case-insensitive partial match on title or artist
-      const songs = await Song.find({
-        $or: [
-          { title: { $regex: q, $options: "i" } },
-          { artist: { $regex: q, $options: "i" } },
-        ],
-      }).limit(10); // optional: limit results
-      console.log(songs);
-      res.json(songs);
-    } catch (error) {
-      res.status(500).json({ message: "Search failed" });
-    }
-  });
-
   app.post("/api/songs/:songId/youtube-id", async (req, res) => {
     try {
       const { songId } = req.params;
@@ -661,45 +556,6 @@ export async function registerRoutes(
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Failed to record vote" });
-    }
-  });
-
-
-  app.delete("/api/queue/:queueItemId/vote", async (req, res) => {
-    try {
-      const { userId, roomId } = req.body;
-      const { queueItemId } = req.params;
-
-      const room = await Room.findById(roomId);
-      if (!room) return res.status(404).json({ message: "Room not found" });
-
-      const queueItem = room.queueItems.id(queueItemId);
-      if (!queueItem) return res.status(404).json({ message: "Queue item not found" });
-
-      // Remove the vote
-      const voteIndex = queueItem.voters.findIndex(v => v.userId.toString() === userId);
-      if (voteIndex > -1) {
-        const vote = queueItem.voters[voteIndex];
-        if (vote.voteType === "up") queueItem.upvotes -= 1;
-        else queueItem.downvotes -= 1;
-
-        queueItem.voters.splice(voteIndex, 1);
-        await room.save();
-
-        // Emit update
-        const updatedRoom = await Room.findById(roomId).populate("queueItems.song");
-        if (updatedRoom) {
-          io.to(roomId).emit("voteUpdated", {
-            roomId,
-            queueItems: updatedRoom.queueItems,
-            updatedQueueItem: queueItem
-          });
-        }
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      res.status(400).json({ message: "Failed to remove vote" });
     }
   });
 

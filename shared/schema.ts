@@ -1,13 +1,13 @@
 import mongoose, { Schema, model } from "mongoose";
 
-// ==================== USERS ====================
+// Users Schema
 const userSchema = new Schema({
   username: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
 export const User = model("User", userSchema);
 
-// ==================== ROOMS ====================
+// Rooms Schema
 const roomSchema = new Schema({
   name: { type: String, required: true },
   code: {
@@ -48,7 +48,7 @@ const roomSchema = new Schema({
 
 export const Room = model("Room", roomSchema);
 
-// ==================== SONGS ====================
+// Songs Schema
 const songSchema = new Schema({
   title: { type: String, required: true },
   artist: { type: String, required: true },
@@ -59,15 +59,3 @@ const songSchema = new Schema({
   youtubeId: { type: String },
 });
 export const Song = model("Song", songSchema);
-
-// ==================== QUEUE ITEMS ====================
-const queueItemSchema = new Schema({
-  roomId: { type: Schema.Types.ObjectId, ref: "Room" },
-  songId: { type: Schema.Types.ObjectId, ref: "Song" },
-  addedBy: { type: Schema.Types.ObjectId, ref: "User" },
-  position: { type: Number, required: true },
-  votes: { type: Number, default: 0 },
-  isPlaying: { type: Boolean, default: false },
-  addedAt: { type: Date, default: Date.now }
-});
-export const QueueItem = model("QueueItem", queueItemSchema);
