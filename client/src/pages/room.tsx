@@ -793,10 +793,10 @@ export default function Room() {
                                 <div className="flex flex-col">
                                   <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-2">
                                     {user.username || "Unknown"}
-                                    {isMe && <Badge variant="secondary" className="text-[12px] h-4 px-2 bg-white/10 text-white/80">You</Badge>}
+                                    {isMe && <Badge variant="secondary" className="text-[12px] h-5 px-2 bg-white/10 text-white/80 rounded-full">You</Badge>}
                                     {isHost && (
                                       <>
-                                        <span className="text-[12px] text-purple-300 font-medium bg-purple-300/10 px-2 rounded-full">Room Host</span>
+                                        <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">Room Host</span>
                                       </>
                                     )}
                                   </span>
@@ -1236,7 +1236,7 @@ export default function Room() {
                           Added by <span>{item?.username || "Unknown"}</span>
                         </p>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 ml-1">
                         <Button
                           variant="ghost"
                           size="sm"
