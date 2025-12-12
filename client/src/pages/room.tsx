@@ -903,9 +903,9 @@ export default function Room() {
       </Dialog>
 
       {/* Three Column Layout - Adaptive Grid/Tabs */}
-      <div className="grid lg:grid-cols-3 gap-6 lg:px-12 px-4 flex-1 min-h-0 pb-24 lg:pb-6 relative w-full">
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-2 lg:gap-4 lg:px-12 px-4 flex-1 min-h-0 lg:pb-6 relative w-full">
         {/* Search and Add Songs */}
-        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex flex-col ${activeTab === 'search' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col ${activeTab === 'search' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-2 flex items-center justify-center text-white">
             <Search className="w-6 h-6 mr-3 text-purple-300" />
             Add Songs
@@ -1039,7 +1039,7 @@ export default function Room() {
         )}
 
         {/* Now Playing */}
-        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex flex-col items-center text-center overflow-y-auto overflow-x-hidden ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col items-center text-center overflow-y-auto overflow-x-hidden ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
             <Play className="w-6 h-6 mr-3 text-green-400" />
             Now Playing
@@ -1179,7 +1179,7 @@ export default function Room() {
         </GlassPanel>
 
         {/* Queue List */}
-        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex items-center flex-col ${activeTab === 'queue' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex items-center flex-col ${activeTab === 'queue' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-6 flex items-center justify-center text-white">
             <Music className="w-6 h-6 mr-3 text-blue-300" />
             Up Next
@@ -1297,43 +1297,43 @@ export default function Room() {
             )}
           </div>
         </GlassPanel>
-      </div>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-6 left-4 right-4 h-16 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl flex items-center justify-around z-50 shadow-2xl safe-pb">
-        <button
-          onClick={() => setActiveTab("search")}
-          className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "search" ? "text-purple-400 scale-110" : "text-gray-400 hover:text-white"
-            }`}
-        >
-          <Search className="w-6 h-6 mb-1" strokeWidth={activeTab === "search" ? 2.5 : 2} />
-          <span className="text-[10px] font-medium tracking-wide">Add Songs</span>
-          {activeTab === "search" && (
-            <span className="absolute -bottom-1 w-1 h-1 bg-purple-400 rounded-full" />
-          )}
-        </button>
+        {/* Mobile Bottom Navigation */}
+        <div className="lg:hidden shrink-0 h-16 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl flex items-center justify-around shadow-2xl safe-pb w-full">
+          <button
+            onClick={() => setActiveTab("search")}
+            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "search" ? "text-purple-400 scale-110" : "text-gray-400 hover:text-white"
+              }`}
+          >
+            <Search className="w-6 h-6 mb-1" strokeWidth={activeTab === "search" ? 2.5 : 2} />
+            <span className="text-[10px] font-medium tracking-wide">Add Songs</span>
+            {activeTab === "search" && (
+              <span className="absolute -bottom-1 w-1 h-1 bg-purple-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          onClick={() => setActiveTab("player")}
-          className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "player" ? "text-green-400 scale-110" : "text-gray-400 hover:text-white"
-            }`}
-        >
-          <div className={`p-3 rounded-full transition-all ${activeTab === "player" ? "bg-green-300/20" : ""}`}>
-            <Play className={`w-6 h-6 ${activeTab === "player" ? "fill-current" : ""}`} strokeWidth={activeTab === "player" ? 2.5 : 2} />
-          </div>
-        </button>
+          <button
+            onClick={() => setActiveTab("player")}
+            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "player" ? "text-green-400 scale-110" : "text-gray-400 hover:text-white"
+              }`}
+          >
+            <div className={`p-3 rounded-full transition-all ${activeTab === "player" ? "bg-green-300/20" : ""}`}>
+              <Play className={`w-6 h-6 ${activeTab === "player" ? "fill-current" : ""}`} strokeWidth={activeTab === "player" ? 2.5 : 2} />
+            </div>
+          </button>
 
-        <button
-          onClick={() => setActiveTab("queue")}
-          className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "queue" ? "text-blue-400 scale-110" : "text-gray-400 hover:text-white"
-            }`}
-        >
-          <Music className="w-6 h-6 mb-1" strokeWidth={activeTab === "queue" ? 2.5 : 2} />
-          <span className="text-[10px] font-medium tracking-wide">Queue</span>
-          {activeTab === "queue" && (
-            <span className="absolute -bottom-1 w-1 h-1 bg-blue-400 rounded-full" />
-          )}
-        </button>
+          <button
+            onClick={() => setActiveTab("queue")}
+            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "queue" ? "text-blue-400 scale-110" : "text-gray-400 hover:text-white"
+              }`}
+          >
+            <Music className="w-6 h-6 mb-1" strokeWidth={activeTab === "queue" ? 2.5 : 2} />
+            <span className="text-[10px] font-medium tracking-wide">Queue</span>
+            {activeTab === "queue" && (
+              <span className="absolute -bottom-1 w-1 h-1 bg-blue-400 rounded-full" />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
