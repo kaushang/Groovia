@@ -46,7 +46,7 @@ export default function DoubleMarquee({
     // Calculate common segment width
     const gap = 24; // 2rem
     // Speed setup
-    const speed = 30; // pixels per second
+    const speed = 36; // pixels per second
     const pauseDuration = 2; // 1 second
 
     // Generate a unique ID for this animation instance style
@@ -78,7 +78,7 @@ export default function DoubleMarquee({
         const pausePercent = (pauseDuration / totalDuration) * 100;
 
         return (
-            <div className="w-full max-w-full overflow-hidden mask-linear-fade relative">
+            <div className="w-full max-w-full overflow-hidden relative">
                 <style>{`
                     @keyframes marquee-${animId}-${suffix} {
                         0% { transform: translateX(0%); }

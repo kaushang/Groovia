@@ -747,7 +747,7 @@ export default function Room() {
                       </span>
                     </button>
                   </SheetTrigger>
-                  <SheetContent className="w-full sm:max-w-md border-l border-white/10 bg-black/80 backdrop-blur-xl text-white p-0 shadow-2xl">
+                  <SheetContent className="w-3/4 sm:max-w-md border-l border-white/10 bg-black/20 backdrop-blur-xl text-white p-0 shadow-2xl">
                     <SheetHeader className="p-4 border-b border-white/10">
                       <SheetTitle className="text-2xl font-bold text-white flex items-center gap-2 mt-4 -mb-1">
                         Room Members
@@ -1039,7 +1039,7 @@ export default function Room() {
         )}
 
         {/* Now Playing */}
-        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex flex-col items-center text-center overflow-y-auto ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 h-[70vh] lg:h-[80vh] flex flex-col items-center text-center overflow-y-auto overflow-x-hidden ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
           <h2 className="text-2xl font-bold mb-6 flex items-center text-white">
             <Play className="w-6 h-6 mr-3 text-green-400" />
             Now Playing
@@ -1101,8 +1101,25 @@ export default function Room() {
             )}
           </div>
 
+          {/* Song Details */}
+          <div className="w-full flex flex-col items-start px-2 text-left">
+            <div className="w-full overflow-hidden relative">
+              <DoubleMarquee
+                text1={activeSong?.song?.title || "No Song Playing"}
+                text2={activeSong ? (Array.isArray(activeSong.song.artists) ? activeSong.song.artists.join(", ") : activeSong.song.artist) : ""}
+                className1="text-lg md:text-xl font-bold text-white"
+                className2="text-xs md:text-base text-purple-300 font-medium"
+              />
+            </div>
+            {activeSong && (
+              <p className="text-xs text-white/50 mt-2">
+                Added by <span className="text-white/80">{activeSong?.username || "Unknown"}</span>
+              </p>
+            )}
+          </div>
+
           {/* Playback Controls & Progress - Always Visible */}
-          <div className={`w-full max-w-xl bg-white/10 backdrop-blur-xl rounded-[1rem] pl-6 pr-6 pt-4 pb-4 border border-white/10 mt-6 transition-all duration-300 ${!activeSong ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+          <div className={`w-full max-w-xl bg-white/10 backdrop-blur-xl rounded-[1rem] pl-6 pr-6 pt-4 pb-4 border border-white/10 mt-4 transition-all duration-300 ${!activeSong ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
             {/* Progress Bar */}
             <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-4 gap-3">
               <span className="w-10 text-right">{formatTime(currentTime)}</span>
@@ -1215,7 +1232,7 @@ export default function Room() {
                         {/* <p className="text-gray-400 text-xs">
                           {item.song?.artist || "Unknown Artist"}
                         </p> */}
-                        <p className="text-white/60 text-xs">
+                        <p className="text-white/60 text-xs ">
                           Added by <span>{item?.username || "Unknown"}</span>
                         </p>
                       </div>
@@ -1231,7 +1248,7 @@ export default function Room() {
                             })
                           }
                           className={`transition-colors p-1 ${userVote === "up"
-                            ? "text-green-400 bg-green-400/10"
+                            ? "text-green-400 bg-green-400/10 hover:bg-green-400/10 hover:text-green-400 disabled:opacity-100"
                             : "text-gray-400 hover:text-green-400 hover:bg-white/10"
                             }`}
                         >
@@ -1249,7 +1266,7 @@ export default function Room() {
                             })
                           }
                           className={`transition-colors p-1 ${userVote === "down"
-                            ? "text-red-400 bg-red-400/10"
+                            ? "text-red-400 bg-red-400/10 hover:bg-red-400/10 hover:text-red-400 disabled:opacity-100"
                             : "text-gray-400 hover:text-red-400 hover:bg-white/10"
                             }`}
                         >
