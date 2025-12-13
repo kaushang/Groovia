@@ -70,8 +70,28 @@ export default function Landing() {
       <div className="text-center max-w-4xl mx-auto w-full">
         {/* Hero Logo and Animation */}
         <div className="w-full text-center md:h-fit mb-12">
-          <div className="text-5xl sm:text-7xl md:text-8xl font-bold">
-            Groovia
+          <div className="relative w-full max-w-[300px] sm:max-w-[400px] md:max-w-[500px] mx-auto flex items-center justify-center">
+            <img
+              src="/groovia_logo.png"
+              alt="Groovia"
+              className="w-full h-auto select-none pointer-events-none"
+            />
+            {/* First icon - right to R */}
+            <div className="absolute w-[16%] top-[50%] -translate-y-1/2 left-[31%] rotate-[40deg]">
+              <img
+                src="/groovia_icon.png"
+                alt=""
+                className="w-full animate-spin-reverse-slow"
+              />
+            </div>
+            {/* Second icon - left to V */}
+            <div className="absolute w-[16%] top-[50%] -translate-y-1/2 left-[48%] rotate-[40deg]">
+              <img
+                src="/groovia_icon.png"
+                alt=""
+                className="w-full animate-spin-slow"
+              />
+            </div>
           </div>
           <h2 className="text-xl md:text-3xl mt-2 font-light text-gray-200 animate-pulse-soft px-2">
             Because music is better together
