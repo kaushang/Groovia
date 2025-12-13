@@ -403,7 +403,16 @@ export async function registerRoutes(
         room.queueItems.sort((a, b) => {
           const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
           const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
-          return scoreB - scoreA;
+
+          if (scoreA !== scoreB) {
+            return scoreB - scoreA;
+          }
+
+          // Tie-breaker: First Added First Served (Earliest timestamp wins)
+          const timeA = a.addedAt ? a.addedAt.getTime() : a._id.getTimestamp().getTime();
+          const timeB = b.addedAt ? b.addedAt.getTime() : b._id.getTimestamp().getTime();
+
+          return timeA - timeB;
         });
 
         room.queueItems[0].isPlaying = true;
@@ -540,17 +549,28 @@ export async function registerRoutes(
       const queueItem = room.queueItems.id(queueItemId);
       if (!queueItem) return res.status(404).json({ message: "Queue item not found" });
 
+      let action = "voted";
       const existingVote = queueItem.voters.find(v => v.userId.toString() === userId);
       if (existingVote) {
-        if (existingVote.voteType !== voteType) {
-          if (existingVote.voteType === "up") queueItem.upvotes -= 1;
-          else queueItem.downvotes -= 1;
+        if (existingVote.voteType === voteType) {
+          // Same vote type -> Unvote (toggle off)
+          action = "unvoted";
+          if (voteType === "up") queueItem.upvotes = Math.max(0, queueItem.upvotes - 1);
+          else queueItem.downvotes = Math.max(0, queueItem.downvotes - 1);
+
+          // Remove the vote from the array
+          queueItem.voters.pull({ _id: existingVote._id });
+        } else {
+          // Different vote type -> Switch vote
+          if (existingVote.voteType === "up") queueItem.upvotes = Math.max(0, queueItem.upvotes - 1);
+          else queueItem.downvotes = Math.max(0, queueItem.downvotes - 1);
 
           existingVote.voteType = voteType;
           if (voteType === "up") queueItem.upvotes += 1;
           else queueItem.downvotes += 1;
         }
       } else {
+        // New vote
         queueItem.voters.push({ userId, voteType });
         if (voteType === "up") queueItem.upvotes += 1;
         else queueItem.downvotes += 1;
@@ -566,6 +586,7 @@ export async function registerRoutes(
         updatedQueueItem: queueItem.toObject(),
         votedBy: { userId },
         voteType,
+        action,
       });
 
       res.json({ success: true });

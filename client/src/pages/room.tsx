@@ -363,9 +363,16 @@ export default function Room() {
       );
 
       if (data.votedBy?.userId !== userId) {
+        let description = "";
+        if (data.action === "unvoted") {
+          description = `${data.votedBy?.username || "Someone"} removed their vote`;
+        } else {
+          description = `${data.votedBy?.username || "Someone"} voted ${data.voteType === "up" ? "👍" : "👎"}`;
+        }
+
         toast({
           title: "Song vote updated",
-          description: `${data.votedBy?.username || "Someone"} voted ${data.voteType === "up" ? "👍" : "👎"}`,
+          description,
         });
       }
     });
@@ -1197,7 +1204,24 @@ export default function Room() {
 
                   const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
                   const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
-                  return scoreB - scoreA; // Descending order
+
+                  if (scoreA !== scoreB) {
+                    return scoreB - scoreA; // Descending order of votes
+                  }
+
+                  // Tie-breaker: First Added First Served (Earlier is better)
+                  const getTime = (item: any) => {
+                    if (item.addedAt) return new Date(item.addedAt).getTime();
+                    // Fallback to _id creation time (first 8 hex chars = seconds timestamp)
+                    const id = (item._id || item.id || "").toString();
+                    try {
+                      return parseInt(id.substring(0, 8), 16) * 1000;
+                    } catch (e) {
+                      return Date.now();
+                    }
+                  };
+
+                  return getTime(a) - getTime(b);
                 })
                 .map((item: any, index: any) => {
                   const userVote = item.voters?.find(
@@ -1240,7 +1264,7 @@ export default function Room() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          disabled={userVote === "up"}
+                          disabled={false}
                           onClick={() =>
                             voteMutation.mutate({
                               queueItemId: item._id || item.id,
@@ -1258,7 +1282,7 @@ export default function Room() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          disabled={userVote === "down"}
+                          disabled={false}
                           onClick={() =>
                             voteMutation.mutate({
                               queueItemId: item._id || item.id,
