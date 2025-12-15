@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Users, Vote, Share } from "lucide-react";
+import { Users, Vote, Share, Music } from "lucide-react";
 import JoinRoomModal from "@/components/join-room-modal";
 import CreateRoomModal from "@/components/create-room-modal";
 import GlassPanel from "@/components/glass-panel";
@@ -58,6 +58,12 @@ export default function Landing() {
       color: "text-purple-300",
     },
     {
+      icon: Music,
+      title: "Vast Music Library",
+      description: "Access Spotify's rich metadata to search and play any song you want",
+      color: "text-green-400",
+    },
+    {
       icon: Share,
       title: "Easy Sharing",
       description: "Share rooms with links and unique codes",
@@ -66,8 +72,8 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col py-12 px-6 md:justify-center items-center w-full">
-      <div className="text-center max-w-4xl mx-auto w-full">
+    <div className="min-h-screen flex flex-col py-12 md:justify-center items-center w-full">
+      <div className="text-center max-w-8xl mx-auto w-full">
         {/* Hero Logo and Animation */}
         <div className="md:h-fit mb-12 md:max-w-[500px] flex items-center flex-col justify-center mx-auto">
           <div >
@@ -133,7 +139,7 @@ export default function Landing() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto w-full pb-6 md:pb-0">
+        <div className="grid md:grid-cols-4 gap-4 max-w-7xl mx-auto w-full pb-6 md:pb-0">
           {features.map((feature, index) => {
             const IconComponent = feature.icon;
             return (
