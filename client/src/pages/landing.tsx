@@ -72,7 +72,7 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col py-12 md:justify-center items-center w-full">
+    <div className="min-h-screen flex flex-col py-12 md:justify-center items-center w-full px-6">
       <div className="text-center max-w-8xl mx-auto w-full">
         {/* Hero Logo and Animation */}
         <div className="md:h-fit mb-12 md:max-w-[500px] flex items-center flex-col justify-center mx-auto">
