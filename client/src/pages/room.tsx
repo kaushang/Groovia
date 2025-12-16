@@ -1058,9 +1058,9 @@ export default function Room() {
         )}
 
         {/* Now Playing */}
-        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col lg:flex-row items-center lg:items-start text-center lg:text-left overflow-hidden ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
+        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col lg:flex-row items-center ${activeSong ? "lg:items-start lg:justify-start" : "lg:items-center lg:justify-center"} text-center ${activeSong ? "lg:text-left" : "lg:text-center"} overflow-hidden ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
           {/* Left Column: Player */}
-          <div className="w-full lg:w-1/2 flex flex-col items-center text-center overflow-y-auto overflow-x-hidden h-full custom-scrollbar pr-1">
+          <div className={`w-full ${activeSong ? "lg:w-1/2" : "lg:w-3/4"} flex flex-col items-center text-center overflow-y-auto overflow-x-hidden h-full custom-scrollbar pr-1`}>
             <h2 className="text-2xl font-bold mb-4 flex items-center text-white justify-center top-0 bg-transparent z-10">
               <Play className="w-6 h-6 mr-3 text-green-400" />
               Now Playing
