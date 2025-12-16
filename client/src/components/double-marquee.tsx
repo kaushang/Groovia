@@ -40,14 +40,10 @@ export default function DoubleMarquee({
 
         return () => resizeObserver.disconnect();
     }, [text1, text2]);
-
-    const isOverflowing = text1Width > containerWidth || text2Width > containerWidth;
-
-    // Calculate common segment width
-    const gap = 24; // 2rem
-    // Speed setup
+    
+    const gap = 24;
     const speed = 36; // pixels per second
-    const pauseDuration = 2; // 1 second
+    const pauseDuration = 2;
 
     // Generate a unique ID for this animation instance style
     // Use a simple random string to avoid React version dependency issues with useId
@@ -65,16 +61,10 @@ export default function DoubleMarquee({
                 </div>
             );
         }
-
-        // Calculate duration based on the LONGEST line to ensure synchronization
-        // Stride is the visual width of one repeating unit (maxContentWidth + gap)
         const stride = maxContentWidth + gap;
         const moveDistance = stride;
         const moveDuration = moveDistance / speed;
-        // Total duration for one loop (move + pause)
         const totalDuration = moveDuration + pauseDuration;
-
-        // Percentage of time spent pausing
         const pausePercent = (pauseDuration / totalDuration) * 100;
 
         return (
@@ -96,11 +86,9 @@ export default function DoubleMarquee({
                         width: "fit-content"
                     }}
                 >
-                    {/* Render 4 copies. Each set to the same STRIDE width to maintain sync */}
                     {[0, 1, 2, 3].map((i) => (
                         <div
                             key={i}
-                            // Important: Use maxContentWidth for the container to sync positions
                             style={{ width: `${maxContentWidth}px`, marginRight: `${gap}px` }}
                             className={`flex-none ${className}`}
                         >
