@@ -987,6 +987,7 @@ export default function Room() {
                       onClick={() => {
                         addToQueueMutation.mutate(song);
                       }}
+                      disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id}
                       className="h-8 w-8 md:h-10 md:w-10 md:opacity-0 opacity-1 group-hover:opacity-100 hover:bg-purple transition-opacity bg-purple-600 rounded-[50%]"
                       data-testid={`button-add-song-${song.id}`}
                     >
