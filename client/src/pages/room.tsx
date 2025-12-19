@@ -25,6 +25,7 @@ import {
   Shuffle,
   Trash2,
   Copy,
+  Loader2,
   X,
 } from "lucide-react";
 import {
@@ -936,13 +937,13 @@ export default function Room() {
               placeholder="Search for songs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400"
+              className="pl-2 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400"
               data-testid="input-search-songs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-4 text-white hover:text-white/60 transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-4 text-white hover:text-white/60 transition-colors"
                 title="Clear search"
               >
                 <X className="w-5 h-5" />
@@ -986,10 +987,14 @@ export default function Room() {
                       onClick={() => {
                         addToQueueMutation.mutate(song);
                       }}
-                      className="h-8 w-8 md:h-10 md:w-10 opacity-1 md:opacity-0 group-hover:opacity-100 hover:bg-purple-700 transition-opacity bg-purple-600 rounded-[50%]"
+                      className="h-8 w-8 md:h-10 md:w-10 md:opacity-0 opacity-1 group-hover:opacity-100 hover:bg-purple transition-opacity bg-purple-600 rounded-[50%]"
                       data-testid={`button-add-song-${song.id}`}
                     >
-                      <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+                      {addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id ? (
+                        <Loader2 style={{ width: 20, height: 20 }} className="text-white animate-spin" />
+                      ) : (
+                        <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+                      )}
                     </Button>
                   </div>
                 ))}
@@ -1154,7 +1159,7 @@ export default function Room() {
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                   >
                     {isHost && (
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
                     )}
                   </div>
                 </div>
@@ -1241,9 +1246,14 @@ export default function Room() {
                         <Button
                           variant="ghost"
                           onClick={() => addToQueueMutation.mutate(song)}
+                          disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id}
                           className="h-8 w-8 md:h-10 md:w-10 opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-purple-700 transition-opacity bg-purple-600 rounded-[50%]"
                         >
-                          <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+                          {addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id ? (
+                            <Loader2 style={{ width: 20, height: 20 }} className="w-6 h-6 text-white animate-spin" />
+                          ) : (
+                            <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+                          )}
                         </Button>
                       </div>
                     ))
@@ -1297,9 +1307,14 @@ export default function Room() {
                         <Button
                           variant="ghost"
                           onClick={() => addToQueueMutation.mutate(song)}
+                          disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id}
                           className="h-8 w-8 md:h-10 md:w-10 opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-purple-700 transition-opacity bg-purple-600 rounded-[50%]"
                         >
-                          <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+                          {addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id ? (
+                            <Loader2 style={{ width: 20, height: 20 }} className="w-6 h-6 text-white animate-spin" />
+                          ) : (
+                            <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+                          )}
                         </Button>
                       </div>
                     ))}
