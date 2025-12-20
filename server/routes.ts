@@ -58,7 +58,9 @@ export async function registerRoutes(
       const room = await Room.findById(roomId)
         .populate("queueItems.song")
         .populate("members.userId", "username")
-        .populate("createdBy", "username");
+        .populate("createdBy", "username")
+        .populate("history.song")
+        .populate("history.addedBy", "username");
       if (!room) {
         return res.status(404).json({ message: "Room not found" });
       }
@@ -239,7 +241,9 @@ export async function registerRoutes(
       const updatedRoom = await Room.findOne({ code: req.params.code })
         .populate("queueItems.song")
         .populate("members.userId", "username")
-        .populate("createdBy", "username");
+        .populate("createdBy", "username")
+        .populate("history.song")
+        .populate("history.addedBy", "username");
       res.json({ room: updatedRoom, userId: savedUser._id });
     } catch (error) {
       console.error("Error fetching room:", error);
@@ -487,24 +491,38 @@ export async function registerRoutes(
       room.queueItems.pull({ _id: queueItemId });
 
       // If the deleted song was playing, promote the next one
-      if (isPlaying && room.queueItems.length > 0) {
-        // Sort by votes to find next best song
-        room.queueItems.sort((a, b) => {
-          const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
-          const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
-
-          if (scoreA !== scoreB) {
-            return scoreB - scoreA;
-          }
-
-          // Tie-breaker: First Added First Served (Earliest timestamp wins)
-          const timeA = a.addedAt ? a.addedAt.getTime() : a._id.getTimestamp().getTime();
-          const timeB = b.addedAt ? b.addedAt.getTime() : b._id.getTimestamp().getTime();
-
-          return timeA - timeB;
+      if (isPlaying) {
+        // Add to history BEFORE removing from queueItems (conceptually) or just add to history now
+        room.history.push({
+          song: queueItem.song,
+          addedBy: queueItem.addedBy,
+          playedAt: new Date()
         });
 
-        room.queueItems[0].isPlaying = true;
+        // Limit history size (e.g., keep last 50)
+        if (room.history.length > 50) {
+          room.history.shift(); // Remove oldest
+        }
+
+        if (room.queueItems.length > 0) {
+          // Sort by votes to find next best song
+          room.queueItems.sort((a, b) => {
+            const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
+            const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
+
+            if (scoreA !== scoreB) {
+              return scoreB - scoreA;
+            }
+
+            // Tie-breaker: First Added First Served (Earliest timestamp wins)
+            const timeA = a.addedAt ? a.addedAt.getTime() : a._id.getTimestamp().getTime();
+            const timeB = b.addedAt ? b.addedAt.getTime() : b._id.getTimestamp().getTime();
+
+            return timeA - timeB;
+          });
+
+          room.queueItems[0].isPlaying = true;
+        }
       }
 
       await room.save();
@@ -513,7 +531,9 @@ export async function registerRoutes(
       const updatedRoom = await Room.findById(room._id)
         .populate("queueItems.song")
         .populate("members.userId", "username")
-        .populate("createdBy", "username");
+        .populate("createdBy", "username")
+        .populate("history.song")
+        .populate("history.addedBy", "username");
       io.to(room._id.toString()).emit("roomUpdated", updatedRoom);
 
       res.json({ success: true });
@@ -587,7 +607,9 @@ export async function registerRoutes(
         { new: true }
       ).populate("queueItems.song")
         .populate("members.userId", "username")
-        .populate("createdBy", "username");
+        .populate("createdBy", "username")
+        .populate("history.song")
+        .populate("history.addedBy", "username");
 
       if (!updatedRoom) {
         return res.status(404).json({ message: "Room not found" });

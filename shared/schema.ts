@@ -45,6 +45,13 @@ const roomSchema = new Schema({
       addedAt: { type: Date, default: Date.now },
     },
   ],
+  history: [
+    {
+      song: { type: Schema.Types.ObjectId, ref: "Song", required: true },
+      addedBy: { type: Schema.Types.String, ref: "User" },
+      playedAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 export const Room = model("Room", roomSchema);

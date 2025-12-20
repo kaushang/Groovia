@@ -127,7 +127,9 @@ io.on("connection", (socket) => {
       const dbRoom = await Room.findById(roomId)
         .populate("queueItems.song")
         .populate("members.userId", "username")
-        .populate("createdBy", "username");
+        .populate("createdBy", "username")
+        .populate("history.song")
+        .populate("history.addedBy", "username");
 
       if (dbRoom) {
         // Emit success back to the joining user
@@ -216,7 +218,9 @@ io.on("connection", (socket) => {
         const room = await Room.findById(roomId)
           .populate("queueItems.song")
           .populate("members.userId", "username")
-          .populate("createdBy", "username");
+          .populate("createdBy", "username")
+          .populate("history.song")
+          .populate("history.addedBy", "username");
         if (room) {
           const roomUpdateData = {
             ...room.toObject(),
@@ -250,6 +254,21 @@ io.on("connection", (socket) => {
       );
 
       if (endedSongIndex !== -1) {
+        // Get the song before removing
+        const queueItem = room.queueItems[endedSongIndex];
+
+        // Add to history
+        room.history.push({
+          song: queueItem.song,
+          addedBy: queueItem.addedBy,
+          playedAt: new Date()
+        });
+
+        // Limit history size
+        if (room.history.length > 50) {
+          room.history.shift();
+        }
+
         // Remove the ended song
         room.queueItems.splice(endedSongIndex, 1);
 
@@ -272,7 +291,9 @@ io.on("connection", (socket) => {
         const updatedRoom = await Room.findById(roomId)
           .populate("queueItems.song")
           .populate("members.userId", "username")
-          .populate("createdBy", "username");
+          .populate("createdBy", "username")
+          .populate("history.song")
+          .populate("history.addedBy", "username");
 
         if (updatedRoom) {
           const currentListenerCount = rooms.get(roomId)?.size || 0;
@@ -282,8 +303,6 @@ io.on("connection", (socket) => {
           };
           io.to(roomId).emit("roomUpdated", roomUpdateData);
         }
-
-
       }
     } catch (error) {
       console.error("Error handling songEnded:", error);
