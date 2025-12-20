@@ -43,6 +43,7 @@ const roomSchema = new Schema({
       ],
       isPlaying: { type: Boolean, default: false },
       addedAt: { type: Date, default: Date.now },
+      lastVotedAt: { type: Date },
     },
   ],
   history: [

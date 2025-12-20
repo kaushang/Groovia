@@ -85,6 +85,7 @@ export default function Room() {
   const [duration, setDuration] = useState(0);
   const [activeTab, setActiveTab] = useState<'search' | 'player' | 'queue'>('player');
   const [activeQueueTab, setActiveQueueTab] = useState<'up-next' | 'history'>('up-next');
+  const [slideDirection, setSlideDirection] = useState(0); // -1 for left, 1 for right
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
@@ -1342,20 +1343,26 @@ export default function Room() {
               />
 
               <button
-                onClick={() => setActiveQueueTab("up-next")}
+                onClick={() => {
+                  setSlideDirection(-1);
+                  setActiveQueueTab("up-next");
+                }}
                 className={`w-1/2 py-2 text-md font-medium transition-colors ${activeQueueTab === "up-next"
-                    ? "text-white"
-                    : "text-gray-400 hover:text-white"
+                  ? "text-white"
+                  : "text-gray-400 hover:text-white"
                   }`}
               >
                 Up Next
               </button>
 
               <button
-                onClick={() => setActiveQueueTab("history")}
+                onClick={() => {
+                  setSlideDirection(1);
+                  setActiveQueueTab("history");
+                }}
                 className={`w-1/2 py-2 text-md font-medium transition-colors ${activeQueueTab === "history"
-                    ? "text-white"
-                    : "text-gray-400 hover:text-white"
+                  ? "text-white"
+                  : "text-gray-400 hover:text-white"
                   }`}
               >
                 Previously Played
@@ -1364,49 +1371,175 @@ export default function Room() {
           </div>
 
 
-          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar w-full">
-            <AnimatePresence mode="popLayout">
-              {activeQueueTab === 'up-next' ? (
-                // Up Next List
-                room?.queueItems
-                  // .filter removed to include all items
-                  .sort((a: any, b: any) => {
-                    // Keep currently playing song at the top
-                    if (a.isPlaying) return -1;
-                    if (b.isPlaying) return 1;
-
-                    const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
-                    const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
-
-                    if (scoreA !== scoreB) {
-                      return scoreB - scoreA; // Descending order of votes
-                    }
-
-                    // Tie-breaker: First Added First Served (Earlier is better)
-                    const getTime = (item: any) => {
-                      if (item.addedAt) return new Date(item.addedAt).getTime();
-                      // Fallback to _id creation time (first 8 hex chars = seconds timestamp)
-                      const id = (item._id || item.id || "").toString();
-                      try {
-                        return parseInt(id.substring(0, 8), 16) * 1000;
-                      } catch (e) {
-                        return Date.now();
-                      }
-                    };
-
-                    return getTime(a) - getTime(b);
+          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
+            <AnimatePresence mode="popLayout" initial={false} custom={slideDirection}>
+              <motion.div
+                key={activeQueueTab}
+                custom={slideDirection}
+                variants={{
+                  enter: (direction: number) => ({
+                    x: direction > 0 ? 300 : -300,
+                    opacity: 0
+                  }),
+                  center: {
+                    zIndex: 1,
+                    x: 0,
+                    opacity: 1
+                  },
+                  exit: (direction: number) => ({
+                    zIndex: 0,
+                    x: direction < 0 ? 300 : -300,
+                    opacity: 0
                   })
-                  .map((item: any, index: any) => {
-                    const userVote = item.voters?.find(
-                      (v: any) => v.userId === userId
-                    )?.voteType;
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 }
+                }}
+                className="w-full flex flex-col space-y-3 lg:space-y-3 h-full"
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={1}
+                onDragEnd={(e, { offset, velocity }) => {
+                  const swipe = offset.x; // > 0 right, < 0 left
 
-                    return (
+                  if (swipe < -50 && activeQueueTab === "up-next") {
+                    setSlideDirection(1);
+                    setActiveQueueTab("history");
+                  } else if (swipe > 50 && activeQueueTab === "history") {
+                    setSlideDirection(-1);
+                    setActiveQueueTab("up-next");
+                  }
+                }}
+              >
+                {activeQueueTab === 'up-next' ? (
+                  // Up Next List
+                  room?.queueItems
+                    // .filter removed to include all items
+                    .sort((a: any, b: any) => {
+                      // Keep currently playing song at the top
+                      if (a.isPlaying) return -1;
+                      if (b.isPlaying) return 1;
+
+                      const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
+                      const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
+
+                      if (scoreA !== scoreB) {
+                        return scoreB - scoreA; // Descending order of votes
+                      }
+
+                      // Tie-breaker: First Voted/Added First Served (Earlier is better)
+                      const getTime = (item: any) => {
+                        if (item.lastVotedAt) return new Date(item.lastVotedAt).getTime();
+                        if (item.addedAt) return new Date(item.addedAt).getTime();
+                        // Fallback to _id creation time (first 8 hex chars = seconds timestamp)
+                        const id = (item._id || item.id || "").toString();
+                        try {
+                          return parseInt(id.substring(0, 8), 16) * 1000;
+                        } catch (e) {
+                          return Date.now();
+                        }
+                      };
+
+                      return getTime(a) - getTime(b);
+                    })
+                    .map((item: any, index: any) => {
+                      const userVote = item.voters?.find(
+                        (v: any) => v.userId === userId
+                      )?.voteType;
+
+                      return (
+                        <motion.div
+                          // layout
+                          // initial={{ opacity: 0, y: 20 }}
+                          key={item._id || item.id}
+                          className={`flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 ${item.isPlaying ? 'bg-green-500/15 hover:bg-green-500/15 border border-green-500' : ''}`}
+                        >
+                          <div className="text-gray-200 text-xs w-2 text-center mr-2">
+                            {index + 1}
+                          </div>
+                          <img
+                            src={
+                              item.song?.cover ||
+                              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
+                            }
+                            alt={`${item.song?.title || "Song"} artwork`}
+                            className="w-12 h-12 rounded-sm object-cover mr-3"
+                          />
+                          <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
+                            <DoubleMarquee
+                              text1={item.song?.title || "Unknown Title"}
+                              text2={item.song?.artist || "Unknown Artist"}
+                              className1="font-medium text-xs md:text-sm text-white"
+                              className2="font-medium text-xs md:text-xs text-gray-400"
+                            />
+                            <p className="text-white/60 text-xs ">
+                              Added by <span>{item?.username || "Unknown"}</span>
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2 ml-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={false}
+                              onClick={() =>
+                                voteMutation.mutate({
+                                  queueItemId: item._id || item.id,
+                                  voteType: "up",
+                                })
+                              }
+                              className={`transition-colors p-1 ${userVote === "up"
+                                ? "text-green-400 bg-green-400/10 hover:bg-green-400/10 hover:text-green-400 disabled:opacity-100"
+                                : "text-gray-400 hover:text-green-400 hover:bg-white/10"
+                                }`}
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                              <span className="mr-1">{item.upvotes ?? 0}</span>
+                            </Button>
+                            {/* Downvote */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={false}
+                              onClick={() =>
+                                voteMutation.mutate({
+                                  queueItemId: item._id || item.id,
+                                  voteType: "down",
+                                })
+                              }
+                              className={`transition-colors p-1 ${userVote === "down"
+                                ? "text-red-400 bg-red-400/10 hover:bg-red-400/10 hover:text-red-400 disabled:opacity-100"
+                                : "text-gray-400 hover:text-red-400 hover:bg-white/10"
+                                }`}
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                              <span className="mr-1">{item.downvotes ?? 0}</span>
+                            </Button>
+
+                            {item.addedBy === userId && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteSongMutation.mutate(item._id)}
+                                className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-400/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                ) : (
+                  // History List
+                  (room?.history && room.history.length > 0) ? (
+                    [...room.history].reverse().map((item: any, index: any) => (
                       <div
-                        // layout
-                        // initial={{ opacity: 0, y: 20 }}
-                        key={item._id || item.id}
-                        className={`flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 ${item.isPlaying ? 'bg-green-500/15 hover:bg-green-500/15 border border-green-500' : ''}`}
+                        key={item._id || index}
+                        className="flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20"
                       >
                         <div className="text-gray-200 text-xs w-2 text-center mr-2">
                           {index + 1}
@@ -1417,130 +1550,50 @@ export default function Room() {
                             "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
                           }
                           alt={`${item.song?.title || "Song"} artwork`}
-                          className="w-12 h-12 rounded-sm object-cover mr-3"
+                          className="w-12 h-12 rounded-sm object-cover mr-3 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
                         />
                         <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
                           <DoubleMarquee
                             text1={item.song?.title || "Unknown Title"}
                             text2={item.song?.artist || "Unknown Artist"}
-                            className1="font-medium text-xs md:text-sm text-white"
+                            className1="font-medium text-xs md:text-sm text-white/70 group-hover:text-white"
                             className2="font-medium text-xs md:text-xs text-gray-400"
                           />
-                          {/* <p className="text-gray-400 text-xs">
-                          {item.song?.artist || "Unknown Artist"}
-                        </p> */}
-                          <p className="text-white/60 text-xs ">
-                            Added by <span>{item?.username || "Unknown"}</span>
+                          <p className="text-white/40 text-[10px] mt-0.5">
+                            Played at {new Date(item.playedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
-                        <div className="flex items-center space-x-2 ml-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={false}
-                            onClick={() =>
-                              voteMutation.mutate({
-                                queueItemId: item._id,
-                                voteType: "up",
-                              })
-                            }
-                            className={`h-8 px-2 ${userVote === "up"
-                              ? "text-green-400 bg-green-400/10"
-                              : "text-gray-400 hover:text-green-400 hover:bg-green-400/10"
-                              }`}
-                          >
-                            <ChevronUp className="w-5 h-5" />
-                            <span className="ml-1 text-xs">{(item.upvotes || 0)}</span>
-                          </Button>
-                          {/* Downvote */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={false}
-                            onClick={() =>
-                              voteMutation.mutate({
-                                queueItemId: item._id,
-                                voteType: "down",
-                              })
-                            }
-                            className={`h-8 px-2 ${userVote === "down"
-                              ? "text-red-400 bg-red-400/10"
-                              : "text-gray-400 hover:text-red-400 hover:bg-red-400/10"
-                              }`}
-                          >
-                            <ChevronDown className="w-5 h-5" />
-                            {/* <span className="ml-1 text-xs">{item.downvotes || 0}</span> */}
-                          </Button>
-
-                          {item.addedBy === userId && !item.isPlaying && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteSongMutation.mutate(item._id)}
-                              className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-400/10"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 md:opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Play Again"
+                          disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === item.song.spotifyId}
+                          onClick={() => addToQueueMutation.mutate({
+                            id: item.song.spotifyId,
+                            name: item.song.title,
+                            artists: [item.song.artist], // API expects array
+                            image: item.song.cover,
+                            duration: item.song.duration,
+                            preview_url: item.song.url
+                          })}
+                        >
+                          {addToQueueMutation.isPending && addToQueueMutation.variables?.id === item.song.spotifyId ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <RotateCcw className="w-4 h-4" />
                           )}
-                        </div>
+                        </Button>
                       </div>
-                    );
-                  })
-              ) : (
-                // History List
-                (room?.history && room.history.length > 0) ? (
-                  [...room.history].reverse().map((item: any, index: any) => (
-                    <div
-                      key={item._id || index}
-                      className="flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20"
-                    >
-                      <div className="text-gray-200 text-xs w-2 text-center mr-2">
-                        {index + 1}
-                      </div>
-                      <img
-                        src={
-                          item.song?.cover ||
-                          "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
-                        }
-                        alt={`${item.song?.title || "Song"} artwork`}
-                        className="w-12 h-12 rounded-sm object-cover mr-3 grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
-                      />
-                      <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
-                        <DoubleMarquee
-                          text1={item.song?.title || "Unknown Title"}
-                          text2={item.song?.artist || "Unknown Artist"}
-                          className1="font-medium text-xs md:text-sm text-white/70 group-hover:text-white"
-                          className2="font-medium text-xs md:text-xs text-gray-400"
-                        />
-                        <p className="text-white/40 text-[10px] mt-0.5">
-                          Played at {new Date(item.playedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 md:opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Play Again"
-                        onClick={() => addToQueueMutation.mutate({
-                          id: item.song.spotifyId,
-                          name: item.song.title,
-                          artists: [item.song.artist], // API expects array
-                          image: item.song.cover,
-                          duration: item.song.duration,
-                          preview_url: item.song.url
-                        })}
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </Button>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-40 text-center text-gray-400 bg-white/5 rounded-lg m-2">
+                      <History className="w-8 h-8 mb-2 opacity-50" />
+                      <p className="text-sm">No songs played yet</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-40 text-center text-gray-400 bg-white/5 rounded-lg m-2">
-                    <History className="w-8 h-8 mb-2 opacity-50" />
-                    <p className="text-sm">No songs played yet</p>
-                  </div>
-                )
-              )}
+                  )
+                )}
+              </motion.div>
             </AnimatePresence>
           </div>
         </GlassPanel>

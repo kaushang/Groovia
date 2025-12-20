@@ -514,9 +514,15 @@ export async function registerRoutes(
               return scoreB - scoreA;
             }
 
-            // Tie-breaker: First Added First Served (Earliest timestamp wins)
-            const timeA = a.addedAt ? a.addedAt.getTime() : a._id.getTimestamp().getTime();
-            const timeB = b.addedAt ? b.addedAt.getTime() : b._id.getTimestamp().getTime();
+            // Tie-breaker: First Voted/Added First Served (Earliest timestamp wins)
+            const getTime = (item: any) => {
+              if (item.lastVotedAt) return item.lastVotedAt.getTime();
+              if (item.addedAt) return item.addedAt.getTime();
+              return item._id.getTimestamp().getTime();
+            };
+
+            const timeA = getTime(a);
+            const timeB = getTime(b);
 
             return timeA - timeB;
           });
@@ -685,6 +691,13 @@ export async function registerRoutes(
         queueItem.voters.push({ userId, voteType });
         if (voteType === "up") queueItem.upvotes += 1;
         else queueItem.downvotes += 1;
+      }
+
+      // Update lastVotedAt only if valid vote exists, otherwise preserve or clear it
+      if (action !== "unvoted") {
+        queueItem.lastVotedAt = new Date();
+      } else if (queueItem.upvotes === 0 && queueItem.downvotes === 0) {
+        queueItem.lastVotedAt = undefined;
       }
 
       await room.save();
