@@ -731,15 +731,27 @@ export default function Room() {
       <div className="container mx-auto px-4">
         <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center md:mb-4 w-full pt-2 md:pt-0">
           <div className="flex flex-col md:items-start md:text-left z-10 w-full md:w-auto">
-            <h1
-              className="text-3xl md:text-2xl text-center font-bold text-white mb-2 md:mt-2 md:mb-1 tracking-tight drop-shadow-lg"
-              data-testid="room-name"
-            >
-              {room.name}
-            </h1>
+            <div className="flex flex-row items-center justify-between gap-4 w-full md:w-auto mb-2 mt-2">
+              <span
+                className="text-2xl md:text-2xl items-end md:text-center font-bold text-white tracking-tight ml-1 drop-shadow-lg"
+                data-testid="room-name"
+              >
+                {room.name}
+              </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="md:hidden text-white/70 text-red-400 h-8 w-12 mr-1 p-0 transition-colors hover:bg-transparent hover:text-red-400 bg-black/20 [&_svg]:w-4 [&_svg]:h-4"
+                onClick={() => setShowLeaveDialog(true)}
+                disabled={leaveRoomMutation.isPending}
+                aria-label="Leave Room"
+              >
+                <LogOut strokeWidth={3} />
+              </Button>
+            </div>
 
-            <div className="flex items-center justify-between text-sm font-medium px-4 text-gray-200 md:bg-transparent rounded-xl border border-white/10 bg-white/10  mb-2 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all md:hover:bg-transparent">
-              <div className="flex items-center flex-row">
+            <div className="flex  justify-between text-sm font-medium px-1 py-1 text-gray-200 md:bg-transparent rounded-xl mb-1 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all md:hover:bg-transparent">
+              <div className="flex items-center flex-row mr-2">
                 <span className="text-gray-400 mr-2 text-sm uppercase tracking-wider">Room Code:</span>
                 <span
                   className="font-mono font-bold tracking-wider text-white"
@@ -752,7 +764,7 @@ export default function Room() {
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5 ml-1 hover:bg-white/20 text-gray-400 hover:text-white rounded-full"
-                  onClick={() => {
+                  onClick={() => {  
                     navigator.clipboard.writeText(room.code);
                     toast({
                       title: "Copied!",
@@ -762,92 +774,79 @@ export default function Room() {
                 >
                   <Copy className="h-3 w-3" />
                 </Button>
-                <span className="mx-2 text-white/30">•</span>
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/10 rounded-full bg-white/10">
-                      <Users className="w-3.5 h-3.5 mr-2 text-purple-300 group-hover:text-purple-400" />
-                      <span className="flex items-center group-hover:underline decoration-white/30 underline-offset-4">
-                        {listenerCount} <span className="md:inline ml-1">listeners</span>
-                      </span>
-                    </button>
-                  </SheetTrigger>
-                  <SheetContent className="w-3/4 sm:max-w-md border-l border-white/10 bg-black/20 backdrop-blur-xl text-white p-0 shadow-2xl">
-                    <SheetHeader className="p-4 border-b border-white/10">
-                      <SheetTitle className="text-2xl font-bold text-white flex items-center gap-2 mt-4 -mb-1">
-                        Room Members
-                      </SheetTitle>
-                      <SheetDescription className="text-gray-400 -mt-2">
-                        See who's vibing in the room right now.
-                      </SheetDescription>
-                    </SheetHeader>
+              </div>
 
-                    <ScrollArea className="h-[calc(100vh-120px)] p-2">
-                      <div className="space-y-4">
-                        {/* Room Members List */}
-                        <div className="space-y-2">
-                          <div className="flex flex-row items-center">
-                            {/* <Users className="w-6 h-6 text-purple-400" /> */}
-                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2 ml-2">Listeners</h4>
-                            <Badge variant="outline" className=" ml-2 border-purple-300/50 text-purple-300">
-                              {room?.members?.length || 0}
-                            </Badge>
-                          </div>
-                          {[...(room?.members || [])].sort((a: any, b: any) => {
-                            const aId = (a.userId?._id || a.userId)?.toString();
-                            const bId = (b.userId?._id || b.userId)?.toString();
-                            const cId = (room.createdBy?._id || room.createdBy)?.toString();
-                            if (aId === cId) return -1;
-                            if (bId === cId) return 1;
-                            return 0;
-                          }).map((member: any) => {
-                            const user = member.userId;
-                            const isMe = (user._id || user) === userId;
-                            const cId = (room.createdBy?._id || room.createdBy)?.toString();
-                            const mId = (user._id || user)?.toString();
-                            const isHost = mId === cId;
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/10 rounded-full bg-white/10">
+                    <Users className="w-3.5 h-3.5 mr-2 text-purple-300 group-hover:text-purple-400" />
+                    <span className="flex items-center group-hover:underline decoration-white/30 underline-offset-4">
+                      {listenerCount} <span className="md:inline ml-1">listeners</span>
+                    </span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent className="w-3/4 sm:max-w-md border-l border-white/10 bg-black/20 backdrop-blur-xl text-white p-0 shadow-2xl">
+                  <SheetHeader className="p-4 border-b border-white/10">
+                    <SheetTitle className="text-2xl font-bold text-white flex items-center gap-2 mt-4 -mb-1">
+                      Room Members
+                    </SheetTitle>
+                    <SheetDescription className="text-gray-400 -mt-2">
+                      See who's vibing in the room right now.
+                    </SheetDescription>
+                  </SheetHeader>
 
-                            return (
-                              <div key={user._id || user} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group">
-                                <Avatar className="h-9 w-9 border border-white/10">
-                                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || user}`} />
-                                  <AvatarFallback className="bg-gray-800 text-gray-300">
-                                    {(user.username?.[0] || "U").toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-2">
-                                    {user.username || "Unknown"}
-                                    {isMe && <Badge variant="secondary" className="text-[12px] h-5 px-2 bg-white/10 text-white/80 rounded-full">You</Badge>}
-                                    {isHost && (
-                                      <>
-                                        <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">Room Host</span>
-                                      </>
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
+                  <ScrollArea className="h-[calc(100vh-120px)] p-2">
+                    <div className="space-y-4">
+                      {/* Room Members List */}
+                      <div className="space-y-2">
+                        <div className="flex flex-row items-center">
+                          {/* <Users className="w-6 h-6 text-purple-400" /> */}
+                          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2 ml-2">Listeners</h4>
+                          <Badge variant="outline" className=" ml-2 border-purple-300/50 text-purple-300">
+                            {room?.members?.length || 0}
+                          </Badge>
                         </div>
-                      </div>
-                    </ScrollArea>
-                  </SheetContent>
-                </Sheet>
-              </div>
+                        {[...(room?.members || [])].sort((a: any, b: any) => {
+                          const aId = (a.userId?._id || a.userId)?.toString();
+                          const bId = (b.userId?._id || b.userId)?.toString();
+                          const cId = (room.createdBy?._id || room.createdBy)?.toString();
+                          if (aId === cId) return -1;
+                          if (bId === cId) return 1;
+                          return 0;
+                        }).map((member: any) => {
+                          const user = member.userId;
+                          const isMe = (user._id || user) === userId;
+                          const cId = (room.createdBy?._id || room.createdBy)?.toString();
+                          const mId = (user._id || user)?.toString();
+                          const isHost = mId === cId;
 
-              <div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="md:hidden text-white/70 text-red-400 w-10 h-10 -mr-3 rounded-full p-0 transition-colors hover:bg-transparent hover:text-red-400 hover:bg-black/20"
-                  onClick={() => setShowLeaveDialog(true)}
-                  disabled={leaveRoomMutation.isPending}
-                  aria-label="Leave Room"
-                >
-                  <LogOut className="w-8 h-8" strokeWidth={3} />
-                </Button>
-              </div>
+                          return (
+                            <div key={user._id || user} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group">
+                              <Avatar className="h-9 w-9 border border-white/10">
+                                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || user}`} />
+                                <AvatarFallback className="bg-gray-800 text-gray-300">
+                                  {(user.username?.[0] || "U").toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-2">
+                                  {user.username || "Unknown"}
+                                  {isMe && <Badge variant="secondary" className="text-[12px] h-5 px-2 bg-white/10 text-white/80 rounded-full">You</Badge>}
+                                  {isHost && (
+                                    <>
+                                      <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">Room Host</span>
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
 
@@ -861,7 +860,7 @@ export default function Room() {
                 disabled={leaveRoomMutation.isPending}
                 data-testid="button-leave-room"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="w-4 h-4" />
                 {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
               </Button>
             </div>
@@ -1134,12 +1133,12 @@ export default function Room() {
             </div>
 
             {/* Song Details */}
-            <div className="w-full flex flex-col items-start px-2 text-left">
+            <div className={`w-full flex flex-col px-2 ${activeSong ? "items-start text-left" : "items-center text-center"}`}>
               <div className="w-full overflow-hidden relative">
                 <DoubleMarquee
-                  text1={activeSong?.song?.title || "No Song Playing"}
+                  text1={activeSong?.song?.title || "Haven't started grooving yet?"}
                   text2={activeSong ? (Array.isArray(activeSong.song.artists) ? activeSong.song.artists.join(", ") : activeSong.song.artist) : ""}
-                  className1="text-lg md:text-xl font-bold text-white"
+                  className1={`font-bold text-white ${activeSong ? "text-lg md:text-xl" : "text-md md:text-xl"}`}
                   className2="text-xs md:text-base text-purple-300 font-medium"
                 />
               </div>
@@ -1371,7 +1370,7 @@ export default function Room() {
           </div>
 
 
-          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
+          <div className="relative flex-1 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
             <AnimatePresence mode="popLayout" initial={false} custom={slideDirection}>
               <motion.div
                 key={activeQueueTab}
@@ -1600,7 +1599,7 @@ export default function Room() {
 
 
         {/* Mobile Bottom Navigation */}
-        < div className="lg:hidden shrink-0 h-16 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl flex items-center justify-around shadow-2xl safe-pb w-full" >
+        < div className="lg:hidden shrink-0 h-14 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl mt-1 flex items-center justify-around shadow-2xl safe-pb w-full" >
           <button
             onClick={() => setActiveTab("search")}
             className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "search" ? "text-purple-400 scale-110" : "text-gray-400 hover:text-white"
@@ -1615,7 +1614,7 @@ export default function Room() {
 
           <button
             onClick={() => setActiveTab("player")}
-            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "player" ? "text-green-400 scale-110" : "text-gray-400 hover:text-white"
+            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "player" ? "text-green-400 scale-100" : "text-gray-400 hover:text-white"
               }`}
           >
             <div className={`p-3 rounded-full transition-all ${activeTab === "player" ? "bg-green-300/20" : ""}`}>
