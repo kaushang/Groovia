@@ -1,0 +1,11 @@
+name: Keep Groovia Awake
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Groovia
+        run: curl -s https://www.grooviamusic.com > /dev/null
