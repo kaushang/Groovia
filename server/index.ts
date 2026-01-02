@@ -315,6 +315,13 @@ io.on("connection", (socket) => {
     // Broadcast to everyone else in the room (excluding sender)
     socket.to(roomId).emit("timeUpdated", { currentTime, duration });
   });
+
+  // Sync loop state
+  socket.on("toggleLoop", (data: { roomId: string; isLooping: boolean }) => {
+    const { roomId, isLooping } = data;
+    // Broadcast to everyone else in the room
+    socket.to(roomId).emit("loopToggled", { isLooping });
+  });
 });
 
 // Add WebSocket-related API endpoints

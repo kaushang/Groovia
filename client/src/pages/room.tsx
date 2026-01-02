@@ -30,6 +30,7 @@ import {
   History,
   RotateCcw,
   Loader2,
+  Repeat,
 } from "lucide-react";
 import {
   Dialog,
@@ -65,6 +66,7 @@ export default function Room() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [listenerCount, setListenerCount] = useState(0);
   const { toast } = useToast();
@@ -73,7 +75,9 @@ export default function Room() {
   const socketRef = useRef<Socket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playerRef = useRef<any>(null);
+
   const lastEmitTimeRef = useRef(0);
+  const lastActiveSongIdRef = useRef<string | null>(null);
   const isHostRef = useRef(false);
   const [location] = useLocation();
   const userIdParam = searchParams.get("user");
@@ -207,6 +211,35 @@ export default function Room() {
     (typeof room.createdBy === 'string' && room.createdBy === userId) ||
     typeof room.createdBy === 'object' && room.createdBy?._id?.toString() === userId.toString()
   ));
+
+  // Handle loop state persistence and reset on song change
+  useEffect(() => {
+    // Use queue item ID to ensure loop state is unique to the specific play instance
+    const currentQueueItemId = activeSong?._id || activeSong?.id;
+
+    if (currentQueueItemId) {
+      // If the song has changed (or this is the first load)
+      if (currentQueueItemId !== lastActiveSongIdRef.current) {
+        const storedState = localStorage.getItem("groovia_loop_state");
+        if (storedState) {
+          try {
+            const parsed = JSON.parse(storedState);
+            // Only restore if the stored queue item ID matches
+            if (parsed.queueItemId === currentQueueItemId && parsed.isLooping) {
+              setIsLooping(true);
+            } else {
+              setIsLooping(false);
+            }
+          } catch (e) {
+            setIsLooping(false);
+          }
+        } else {
+          setIsLooping(false);
+        }
+        lastActiveSongIdRef.current = currentQueueItemId;
+      }
+    }
+  }, [activeSong?._id, activeSong?.id]);
 
   useEffect(() => {
     isHostRef.current = isHost;
@@ -391,6 +424,12 @@ export default function Room() {
         setCurrentTime(data.currentTime);
         setDuration(data.duration);
       }
+    });
+
+    // ✅ Sync Loop State Listener
+    socket.on("loopToggled", (data) => {
+      console.log("🔁 Received loop update:", data);
+      setIsLooping(data.isLooping);
     });
 
     // Cleanup on unmount
@@ -764,7 +803,7 @@ export default function Room() {
                   variant="ghost"
                   size="icon"
                   className="h-5 w-5 ml-1 hover:bg-white/20 text-gray-400 hover:text-white rounded-full"
-                  onClick={() => {  
+                  onClick={() => {
                     navigator.clipboard.writeText(room.code);
                     toast({
                       title: "Copied!",
@@ -780,7 +819,7 @@ export default function Room() {
                 <SheetTrigger asChild>
                   <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/10 rounded-full bg-white/10">
                     <Users className="w-3.5 h-3.5 mr-2 text-purple-300 group-hover:text-purple-400" />
-                    <span className="flex items-center group-hover:underline decoration-white/30 underline-offset-4">
+                    <span className="flex items-center py-1 group-hover:underline decoration-white/30 underline-offset-4">
                       {listenerCount} <span className="md:inline ml-1">listeners</span>
                     </span>
                   </button>
@@ -1034,6 +1073,11 @@ export default function Room() {
             ref={audioRef}
             src={activeSong?.song?.url}
             onEnded={() => {
+              if (isLooping && audioRef.current) {
+                audioRef.current.currentTime = 0;
+                audioRef.current.play();
+                return;
+              }
               if (activeSong && socketRef.current) {
                 console.log("Song ended, requesting next...", activeSong);
                 socketRef.current.emit("songEnded", {
@@ -1101,7 +1145,14 @@ export default function Room() {
                           if (e.data === 1) setIsPlaying(true);
                           if (e.data === 2) setIsPlaying(false);
                         }}
-                        onEnd={handleNext}
+                        onEnd={() => {
+                          if (isLooping && playerRef.current) {
+                            playerRef.current.seekTo(0);
+                            playerRef.current.playVideo();
+                          } else {
+                            handleNext();
+                          }
+                        }}
                         className="rounded-xl w-full aspect-video"
                         iframeClassName="rounded-xl w-full h-full"
                       />
@@ -1172,7 +1223,7 @@ export default function Room() {
               </div>
 
               {/* Controls */}
-              <div className="flex items-center justify-center gap-6">
+              <div className="flex items-center justify-center gap-4">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1204,6 +1255,34 @@ export default function Room() {
                   disabled={!isHost}
                 >
                   <SkipForward className="w-8 h-8" strokeWidth={1.5} />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`w-8 h-8 absolute right-7 transition-all scale-125 transform disabled:opacity-30 hover:bg-transparent disabled:cursor-not-allowed hover:text-white-50 ${isLooping ? "text-purple-400 hover:text-purple-400" : "text-white/70"
+                    }`}
+                  onClick={() => {
+                    const newState = !isLooping;
+                    setIsLooping(newState);
+                    const currentQueueItemId = activeSong?._id || activeSong?.id;
+                    if (currentQueueItemId) {
+                      localStorage.setItem("groovia_loop_state", JSON.stringify({
+                        queueItemId: currentQueueItemId,
+                        isLooping: newState
+                      }));
+                    }
+                    if (socketRef.current) {
+                      socketRef.current.emit("toggleLoop", {
+                        roomId,
+                        isLooping: newState
+                      });
+                    }
+                  }}
+                  disabled={!isHost}
+                  title={isLooping ? "Disable Loop" : "Enable Loop"}
+                >
+                  <Repeat className="w-6 h-6" strokeWidth={isLooping ? 2.5 : 1.5} />
                 </Button>
               </div>
             </div>
@@ -1475,8 +1554,13 @@ export default function Room() {
                               className1="font-medium text-xs md:text-sm text-white"
                               className2="font-medium text-xs md:text-xs text-gray-400"
                             />
-                            <p className="text-white/60 text-xs ">
-                              Added by <span>{item?.username || "Unknown"}</span>
+                            <p className="text-white/60 text-xs flex items-center">
+                              <div>
+                                Added by <span>{item?.username || "Unknown"}</span>
+                              </div>
+                              {item.isPlaying && isLooping && (
+                                <Repeat className="w-3 h-3 text-green-300 inline ml-2" />
+                              )}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2 ml-1">
