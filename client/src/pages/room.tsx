@@ -720,7 +720,6 @@ export default function Room() {
         if (isHost && socketRef.current && typeof time === 'number') {
           const now = Date.now();
           if (now - lastEmitTimeRef.current > 1000) { // Emit every 1s
-            console.log("⏱️ Emitting time update:", time);
             socketRef.current.emit("updateTime", {
               roomId,
               currentTime: time,
@@ -765,7 +764,7 @@ export default function Room() {
 
 
   return (
-    <div className="h-screen flex flex-col pt-4 pb-8 overflow-hidden">
+    <div className="h-screen flex flex-col pt-2 pb-8 overflow-hidden">
       {/* Room Header */}
       <div className="container mx-auto px-4">
         <div className="relative flex flex-col md:flex-row justify-center md:justify-between items-center md:items-center md:mb-4 w-full pt-2 md:pt-0">
@@ -780,12 +779,13 @@ export default function Room() {
               <Button
                 size="icon"
                 variant="ghost"
-                className="md:hidden text-white/70 text-red-400 h-8 w-12 mr-1 p-0 transition-colors hover:bg-transparent hover:text-red-400 bg-black/20 [&_svg]:w-4 [&_svg]:h-4"
+                className="md:hidden text-red-400 text-md h-fit w-fit mr-3 pt-1 hover:bg-transparent hover:text-red-400 [&_svg]:w-4 [&_svg]:h-4"
                 onClick={() => setShowLeaveDialog(true)}
                 disabled={leaveRoomMutation.isPending}
                 aria-label="Leave Room"
               >
-                <LogOut strokeWidth={3} />
+                Leave
+                {/* <LogOut strokeWidth={3} /> */}
               </Button>
             </div>
 
@@ -818,8 +818,8 @@ export default function Room() {
               <Sheet>
                 <SheetTrigger asChild>
                   <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/10 rounded-full bg-white/10">
-                    <Users className="w-3.5 h-3.5 mr-2 text-purple-300 group-hover:text-purple-400" />
-                    <span className="flex items-center py-1 group-hover:underline decoration-white/30 underline-offset-4">
+                    <Users className="w-3.5 h-3.5 mr-2 text-purple-300" />
+                    <span className="flex items-center py-1 decoration-white/30 underline-offset-4">
                       {listenerCount} <span className="md:inline ml-1">listeners</span>
                     </span>
                   </button>
@@ -841,7 +841,7 @@ export default function Room() {
                         <div className="flex flex-row items-center">
                           {/* <Users className="w-6 h-6 text-purple-400" /> */}
                           <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2 ml-2">Listeners</h4>
-                          <Badge variant="outline" className=" ml-2 border-purple-300/50 text-purple-300">
+                          <Badge variant="outline" className=" ml-2 border-purple-300/50 px-2 text-purple-300">
                             {room?.members?.length || 0}
                           </Badge>
                         </div>
@@ -860,22 +860,23 @@ export default function Room() {
                           const isHost = mId === cId;
 
                           return (
-                            <div key={user._id || user} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group">
-                              <Avatar className="h-9 w-9 border border-white/10">
+                            <div key={user._id || user} className="flex items-center rounded-sm gap-3 p-1 hover:bg-white/5 transition-colors group">
+                              <Avatar className={`h-9 w-9 border ${isHost ? 'border-purple-400 ring-2 ring-purple-400/30 shadow-[0_0_8px_rgba(192,132,252,0.4)]' : 'border-white/10'}`}>
                                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || user}`} />
                                 <AvatarFallback className="bg-gray-800 text-gray-300">
                                   {(user.username?.[0] || "U").toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col">
-                                <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-1">
+                                  {/* {isMe} */}
                                   {user.username || "Unknown"}
-                                  {isMe && <Badge variant="secondary" className="text-[12px] h-5 px-2 bg-white/10 text-white/80 rounded-full">You</Badge>}
                                   {isHost && (
                                     <>
-                                      <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">Room Host</span>
+                                      <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">Host</span>
                                     </>
                                   )}
+                                  {isMe && <Badge variant="secondary" className="text-[12px] pt-1 text-white/80 bg-transparent">(You)</Badge>}
                                 </span>
                               </div>
                             </div>
@@ -912,6 +913,11 @@ export default function Room() {
           </div>
         </div>
       </div>
+
+
+
+
+
 
       {/* Join Room Dialog */}
       <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
@@ -995,7 +1001,7 @@ export default function Room() {
           </div>
 
           {/* Search Results */}
-          <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+          <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
             {isSearching ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
@@ -1110,6 +1116,11 @@ export default function Room() {
             onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           />
         )}
+
+
+
+
+
 
         {/* Now Playing */}
         <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col lg:flex-row items-center ${activeSong ? "lg:items-start lg:justify-start" : "lg:items-center lg:justify-center"} text-center ${activeSong ? "lg:text-left" : "lg:text-center"} overflow-hidden ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
@@ -1409,6 +1420,11 @@ export default function Room() {
           )}
         </GlassPanel>
 
+
+
+
+
+
         {/* Queue List */}
         <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex items-center flex-col ${activeTab === 'queue' ? 'flex' : 'hidden lg:flex'}`}>
           <div className="flex items-center justify-center w-full mb-4">
@@ -1477,7 +1493,7 @@ export default function Room() {
                   x: { type: "spring", stiffness: 300, damping: 30 },
                   opacity: { duration: 0.2 }
                 }}
-                className="w-full flex flex-col space-y-3 lg:space-y-3 h-full"
+                className="w-full flex flex-col space-y-2 lg:space-y-2 h-full"
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={1}
@@ -1536,8 +1552,13 @@ export default function Room() {
                           key={item._id || item.id}
                           className={`flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 ${item.isPlaying ? 'bg-green-500/15 hover:bg-green-500/15 border border-green-500' : ''}`}
                         >
-                          <div className="text-gray-200 text-xs w-2 text-center mr-2">
-                            {index + 1}
+                          <div className="flex flex-col items-center justify-center mr-1 w-4">
+                            <div className="text-gray-200 text-xs text-center w-full">
+                              {index + 1}
+                            </div>
+                            {item.isPlaying && isLooping && (
+                              <Repeat className="w-3 h-3 text-green-300 mb-0.5" />
+                            )}
                           </div>
                           <img
                             src={
@@ -1545,7 +1566,7 @@ export default function Room() {
                               "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
                             }
                             alt={`${item.song?.title || "Song"} artwork`}
-                            className="w-12 h-12 rounded-sm object-cover mr-3"
+                            className="w-12 h-12 rounded-sm object-cover mr-2"
                           />
                           <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
                             <DoubleMarquee
@@ -1554,60 +1575,59 @@ export default function Room() {
                               className1="font-medium text-xs md:text-sm text-white"
                               className2="font-medium text-xs md:text-xs text-gray-400"
                             />
-                            <p className="text-white/60 text-xs flex items-center">
+                            <p className="text-white/60 text-[11px] text-xs flex items-center">
                               <div>
-                                Added by <span>{item?.username || "Unknown"}</span>
+                                By <span>{item?.username || "Unknown"}</span>
                               </div>
-                              {item.isPlaying && isLooping && (
-                                <Repeat className="w-3 h-3 text-green-300 inline ml-2" />
-                              )}
                             </p>
                           </div>
-                          <div className="flex items-center space-x-2 ml-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={false}
-                              onClick={() =>
-                                voteMutation.mutate({
-                                  queueItemId: item._id || item.id,
-                                  voteType: "up",
-                                })
-                              }
-                              className={`transition-colors p-1 ${userVote === "up"
-                                ? "text-green-400 bg-green-400/10 hover:bg-green-400/10 hover:text-green-400 disabled:opacity-100"
-                                : "text-gray-400 hover:text-green-400 hover:bg-white/10"
-                                }`}
-                            >
-                              <ChevronUp className="w-4 h-4" />
-                              <span className="mr-1">{item.upvotes ?? 0}</span>
-                            </Button>
-                            {/* Downvote */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={false}
-                              onClick={() =>
-                                voteMutation.mutate({
-                                  queueItemId: item._id || item.id,
-                                  voteType: "down",
-                                })
-                              }
-                              className={`transition-colors p-1 ${userVote === "down"
-                                ? "text-red-400 bg-red-400/10 hover:bg-red-400/10 hover:text-red-400 disabled:opacity-100"
-                                : "text-gray-400 hover:text-red-400 hover:bg-white/10"
-                                }`}
-                            >
-                              <ChevronDown className="w-4 h-4" />
-                              <span className="mr-1">{item.downvotes ?? 0}</span>
-                            </Button>
+                          <div className="flex items-center ml-1 h-full">
+                            <div className="flex flex-col items-center justify-center mr-1 gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={false}
+                                onClick={() =>
+                                  voteMutation.mutate({
+                                    queueItemId: item._id || item.id,
+                                    voteType: "up",
+                                  })
+                                }
+                                className={`transition-colors h-[50%] h-6 p-2 flex items-center ${userVote === "up"
+                                  ? "text-green-400 bg-green-400/10 hover:bg-green-400/10 hover:text-green-400 disabled:opacity-100"
+                                  : "text-gray-400 hover:text-green-400 hover:bg-white/10"
+                                  }`}
+                              >
+                                <ChevronUp className="w-3 h-3 md:w-4 md:h-4" />
+                                <span className="ml-[2px] text-[10px] md:text-xs">{item.upvotes ?? 0}</span>
+                              </Button>
+                              {/* Downvote */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={false}
+                                onClick={() =>
+                                  voteMutation.mutate({
+                                    queueItemId: item._id || item.id,
+                                    voteType: "down",
+                                  })
+                                }
+                                className={`transition-colors h-[50%] h-6 p-2 flex items-center ${userVote === "down"
+                                  ? "text-red-400 bg-red-400/10 hover:bg-red-400/10 hover:text-red-400 disabled:opacity-100"
+                                  : "text-gray-400 hover:text-red-400 hover:bg-white/10"
+                                  }`}
+                              >
+                                <ChevronDown className="w-3 h-3 md:w-4 md:h-4" />
+                                <span className="ml-[2px] text-[10px] md:text-xs">{item.downvotes ?? 0}</span>
+                              </Button>
+                            </div>
 
                             {item.addedBy === userId && (
                               <Button
                                 variant="ghost"
-                                size="icon"
+                                size="sm"
                                 onClick={() => deleteSongMutation.mutate(item._id)}
-                                className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-400/10"
+                                className="h-full w-8 text-gray-400 hover:text-red-400 hover:bg-red-400/10"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -1649,7 +1669,7 @@ export default function Room() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 md:opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="ml-1 h-8 w-8 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 md:opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Play Again"
                           disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === item.song.spotifyId}
                           onClick={() => addToQueueMutation.mutate({

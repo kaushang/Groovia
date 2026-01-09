@@ -85,7 +85,7 @@ export default function CreateRoomModal({
   };
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
-    if (value.length > 16) value = value.slice(0, 16);
+    if (value.length > 12) value = value.slice(0, 12);
     setUsername(value);
   };
 
@@ -109,7 +109,7 @@ export default function CreateRoomModal({
               value={username}
               onChange={handleUsernameChange}
               placeholder="Enter Name"
-              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide mt- p-6"
+              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide p-6"
               data-testid="input-user-name"
             />
           </div>

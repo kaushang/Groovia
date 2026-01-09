@@ -80,7 +80,7 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
   };
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
-    if (value.length > 16) value = value.slice(0, 16);
+    if (value.length > 12) value = value.slice(0, 12);
     setUsername(value);
   };
 
