@@ -720,6 +720,11 @@ export async function registerRoutes(
     }
   });
 
+  // Route to keep server awake
+  app.get("/health", (req, res) => {
+    res.status(200).send("OK");
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
