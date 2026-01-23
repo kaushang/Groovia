@@ -157,15 +157,18 @@ export default function Room() {
     };
   }, []);
 
-  const handleJoinRoom = async () => {
-    if (!joinUsername.trim() || !room?.code) return;
-
-    try {
-      const res = await axios.post(`/api/rooms/code/${room.code}`, {
+  const joinRoomMutation = useMutation({
+    mutationFn: async () => {
+      if (!joinUsername.trim() || !room?.code) {
+        throw new Error("Validation failed");
+      }
+      return apiRequest("POST", `/api/rooms/code/${room.code}`, {
         username: joinUsername,
       });
-
-      const newUserId = res.data.userId;
+    },
+    onSuccess: async (response) => {
+      const res = await response.json();
+      const newUserId = res.userId;
 
       // Save to session
       sessionStorage.setItem("userId", newUserId);
@@ -181,13 +184,19 @@ export default function Room() {
         title: "Joined Room",
         description: `Welcome, ${joinUsername}!`,
       });
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         title: "Failed to join",
         description: "Could not join the room. Please try again.",
         variant: "destructive",
       });
-    }
+    },
+  });
+
+  const handleJoinRoom = () => {
+   if (joinRoomMutation.isPending) return;
+    joinRoomMutation.mutate();
   };
 
   const { data: room, isLoading } = useQuery({
@@ -945,7 +954,7 @@ export default function Room() {
                 }}
                 className="bg-white/10 border-white/20 placeholder:text-white-400 text-lg tracking-widest mt-2 p-5"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleJoinRoom();
+                  if (e.key === "Enter" && !joinRoomMutation.isPending) handleJoinRoom();
                 }}
               />
             </div>
@@ -962,9 +971,10 @@ export default function Room() {
               <Button
                 type="button"
                 onClick={handleJoinRoom}
+                disabled={joinRoomMutation.isPending}
                 className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600"
               >
-                Join Room
+                {joinRoomMutation.isPending ? "Joining..." : "Join Room"}
               </Button>
             </div>
           </div>

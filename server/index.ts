@@ -75,6 +75,14 @@ io.on("connection", (socket) => {
 
       socket.join(roomId);
 
+      // Check if user was already in this room before (for toast filtering)
+      const alreadyInRoom = Array.from(rooms.get(roomId) || []).some(
+        (socketId) => {
+          const memberUser = connectedUsers.get(socketId);
+          return memberUser?.userId === userId;
+        }
+      );
+
       for (const [socketId, memberUser] of Array.from(
         connectedUsers.entries()
       )) {
@@ -89,14 +97,6 @@ io.on("connection", (socket) => {
           connectedUsers.delete(socketId);
         }
       }
-
-      // Check if user was already in this room before (for toast filtering)
-      const alreadyInRoom = Array.from(rooms.get(roomId) || []).some(
-        (socketId) => {
-          const memberUser = connectedUsers.get(socketId);
-          return memberUser?.userId === userId;
-        }
-      );
 
       // Register (or update) this socket
       let user = connectedUsers.get(socket.id);
