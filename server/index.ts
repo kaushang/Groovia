@@ -75,6 +75,14 @@ io.on("connection", (socket) => {
 
       socket.join(roomId);
 
+      // Check if user was already in this room before (for toast filtering)
+      const alreadyInRoom = Array.from(rooms.get(roomId) || []).some(
+        (socketId) => {
+          const memberUser = connectedUsers.get(socketId);
+          return memberUser?.userId === userId;
+        }
+      );
+
       for (const [socketId, memberUser] of Array.from(
         connectedUsers.entries()
       )) {
@@ -89,14 +97,6 @@ io.on("connection", (socket) => {
           connectedUsers.delete(socketId);
         }
       }
-
-      // Check if user was already in this room before (for toast filtering)
-      const alreadyInRoom = Array.from(rooms.get(roomId) || []).some(
-        (socketId) => {
-          const memberUser = connectedUsers.get(socketId);
-          return memberUser?.userId === userId;
-        }
-      );
 
       // Register (or update) this socket
       let user = connectedUsers.get(socket.id);
@@ -175,69 +175,80 @@ io.on("connection", (socket) => {
 
   // Handle leaving rooms via WebSocket
   socket.on("leaveRoom", async (data: { roomId: string; userId: string }) => {
-    try {
-      const { roomId, userId } = data;
-
-      // Get user info before removing
-      const user = connectedUsers.get(socket.id);
-
-      // Leave the socket room
-      socket.leave(roomId);
-
-      // Remove from tracking maps
-      if (rooms.has(roomId)) {
-        const roomSockets = rooms.get(roomId)!;
-        const wasInRoom = roomSockets.has(socket.id);
-        roomSockets.delete(socket.id);
-      }
-
-      // Remove room from user's rooms set
-      if (user && user.rooms.has(roomId)) {
-        user.rooms.delete(roomId);
-      }
-
-      // Get current listener count after removal
-      const currentListenerCount = rooms.get(roomId)?.size || 0;
-
-      // Notify other users in the room about user leaving
-      const userLeftData = {
-        user: user
-          ? {
-            userId: user.userId,
-            username: user.username,
-            socketId: socket.id,
-          }
-          : { userId },
-        roomId: roomId,
-      };
-
-      socket.to(roomId).emit("userLeft", userLeftData);
-
-      // Send updated listener count to remaining users
+    // Delay handling of leave to allow for page refreshes
+    setTimeout(async () => {
       try {
-        const room = await Room.findById(roomId)
-          .populate("queueItems.song")
-          .populate("members.userId", "username")
-          .populate("createdBy", "username")
-          .populate("history.song")
-          .populate("history.addedBy", "username");
-        if (room) {
-          const roomUpdateData = {
-            ...room.toObject(),
-            listenerCount: currentListenerCount,
-          };
-          socket.to(roomId).emit("roomUpdated", roomUpdateData);
-        } else {
+        const { roomId, userId } = data;
+
+        // Get user info before removing
+        const user = connectedUsers.get(socket.id);
+
+        // Leave the socket room
+        socket.leave(roomId);
+
+        // Remove from tracking maps
+        if (rooms.has(roomId)) {
+          const roomSockets = rooms.get(roomId)!;
+          roomSockets.delete(socket.id);
         }
-      } catch (dbError) {
-        console.error("💥 Error fetching room for update:", dbError);
+
+        // Remove room from user's rooms set
+        if (user && user.rooms.has(roomId)) {
+          user.rooms.delete(roomId);
+        }
+
+        // Check if user is still in room (via another socket/reconnection)
+        const isUserStillInRoom = Array.from(rooms.get(roomId) || []).some(
+          (socketId) => {
+            const memberUser = connectedUsers.get(socketId);
+            return memberUser?.userId === userId;
+          }
+        );
+
+        // Get current listener count after removal
+        const currentListenerCount = rooms.get(roomId)?.size || 0;
+
+        // Notify other users in the room ONLY if user is COMPLELTY gone
+        if (!isUserStillInRoom) {
+          const userLeftData = {
+            user: user
+              ? {
+                userId: user.userId,
+                username: user.username,
+                socketId: socket.id,
+              }
+              : { userId },
+            roomId: roomId,
+          };
+
+          socket.to(roomId).emit("userLeft", userLeftData);
+        }
+
+        // Send updated listener count to remaining users
+        try {
+          const room = await Room.findById(roomId)
+            .populate("queueItems.song")
+            .populate("members.userId", "username")
+            .populate("createdBy", "username")
+            .populate("history.song")
+            .populate("history.addedBy", "username");
+          if (room) {
+            const roomUpdateData = {
+              ...room.toObject(),
+              listenerCount: currentListenerCount,
+            };
+            socket.to(roomId).emit("roomUpdated", roomUpdateData);
+          }
+        } catch (dbError) {
+          console.error("💥 Error fetching room for update:", dbError);
+        }
+      } catch (error) {
+        console.error("💥 Error in WebSocket leaveRoom:", error);
+        if (error instanceof Error) {
+          console.error("Error stack:", error.stack);
+        }
       }
-    } catch (error) {
-      console.error("💥 Error in WebSocket leaveRoom:", error);
-      if (error instanceof Error) {
-        console.error("Error stack:", error.stack);
-      }
-    }
+    }, 1000); // 1 second delay
   });
 
   socket.on("songEnded", async (data: { roomId: string; songId: string }) => {

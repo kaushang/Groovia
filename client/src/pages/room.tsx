@@ -55,7 +55,6 @@ import LeaveRoomModal from "@/components/leave-room-modal";
 import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Song } from "@shared/schema";
 import { io, Socket } from "socket.io-client";
 import { AnimatePresence, motion } from "framer-motion";
 import YouTube from "react-youtube";
