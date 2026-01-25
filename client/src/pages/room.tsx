@@ -1021,9 +1021,17 @@ export default function Room() {
 
           {/* Search Results */}
           <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
-            {isSearching ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
+            {isSearching || (searchQuery !== debouncedQuery && searchQuery.length > 0) ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+
+                <div className="flex items-center gap-2 py-1">
+                  <img
+                    src="/groovia_icon.png"
+                    alt=""
+                    className="w-10 h-10 animate-spin-reverse-slow"
+                  />
+                  {/* <p className="test-xs text-white/80">Loading</p> */}
+                </div>
               </div>
             ) : searchResults.length > 0 ? (
               <>
@@ -1075,11 +1083,16 @@ export default function Room() {
                   >
                     {isFetchingNextPage ? (
                       <div className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
-                        <span className="text-sm text-purple-400 hover:text-purple-500">Loading more...</span>
+                        {/* <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div> */}
+                        <img
+                          src="/groovia_icon.png"
+                          alt=""
+                          className="w-4 h-4 animate-spin-reverse-slow"
+                        />
+                        <span className="text-sm text-white/80">Loading more...</span>
                       </div>
                     ) : (
-                      <span className="text-purple-400 hover:text-purple-500 text-sm">more results</span>
+                      <span className="text-white/80 text-sm underline">more results</span>
                     )}
                   </div>
                 )}
@@ -1200,9 +1213,16 @@ export default function Room() {
                     )}
                   </div>
                 ) : (
-                  <div className="w-full aspect-video flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-400 mb-3"></div>
-                    <p className="text-white/80 animate-pulse text-sm font-medium">Playing...</p>
+                  <div className="w-full aspect-video flex items-center justify-center bg-white/5 rounded-xl border border-white/5">
+                    <div className="flex flex-row items-center ">
+
+                      <img
+                        src="/groovia_icon.png"
+                        alt=""
+                        className="h-10 w-10 animate-spin-reverse-slow"
+                      />
+                      {/* <p className="text-white/80  font-medium ml-2">Playing</p> */}
+                    </div>
                   </div>
                 )
               ) : (
