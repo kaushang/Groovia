@@ -64,6 +64,7 @@ export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
@@ -97,6 +98,14 @@ export default function Room() {
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500); // delay in ms
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Check if we need to show join dialog
   useEffect(() => {
@@ -195,7 +204,7 @@ export default function Room() {
   });
 
   const handleJoinRoom = () => {
-   if (joinRoomMutation.isPending) return;
+    if (joinRoomMutation.isPending) return;
     joinRoomMutation.mutate();
   };
 
@@ -457,17 +466,17 @@ export default function Room() {
     hasNextPage,
     isFetchingNextPage
   } = useInfiniteQuery({
-    queryKey: ["/search", { q: searchQuery }],
+    queryKey: ["/search", { q: debouncedQuery }],
     queryFn: async ({ pageParam = 0 }) => {
       const res = await axios.get<any>("/search", {
-        params: { q: searchQuery, offset: pageParam },
+        params: { q: debouncedQuery, offset: pageParam },
       });
       return res.data.tracks;
     },
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.length === 10 ? allPages.length * 10 : undefined;
     },
-    enabled: searchQuery.length > 0,
+    enabled: debouncedQuery.length > 0,
     initialPageParam: 0,
   });
 
@@ -1075,7 +1084,7 @@ export default function Room() {
                   </div>
                 )}
               </>
-            ) : searchQuery.length > 0 ? (
+            ) : debouncedQuery.length > 0 ? (
               <div className="h-full flex items-center justify-center min-h-[200px]">
                 <p className="text-gray-400">No results found</p>
               </div>
