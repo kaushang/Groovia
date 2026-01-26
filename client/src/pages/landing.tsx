@@ -1,48 +1,15 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Users, Vote, Share, Music } from "lucide-react";
-import JoinRoomModal from "@/components/join-room-modal";
-import CreateRoomModal from "@/components/create-room-modal";
-import GlassPanel from "@/components/glass-panel";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { FaPlus } from "react-icons/fa";
 import { BiDoorOpen } from "react-icons/bi";
+import JoinRoomModal from "@/components/join-room-modal";
+import CreateRoomModal from "@/components/create-room-modal";
+import FeatureCard from "@/components/feature-card";
 
 export default function Landing() {
-  const [, setLocation] = useLocation();
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { toast } = useToast();
-
-  const createRoomMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/rooms", {
-        name: "My Music Room",
-        createdBy: "demo-user", // In real app, use actual user ID
-      }),
-    onSuccess: async (response) => {
-      const room = await response.json();
-      toast({
-        title: "Room created!",
-        description: `Room code: ${room.code}`,
-      });
-      setLocation(`/room/${room.id}`);
-    },
-    onError: () => {
-      toast({
-        title: "Failed to create room",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const createRoom = () => {
-    createRoomMutation.mutate();
-  };
 
   const features = [
     {
@@ -72,7 +39,7 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col py-12 md:justify-center items-center w-full px-6">
+    <div className="min-h-screen flex py-12 md:justify-center items-center w-full px-6">
       <div className="text-center max-w-8xl mx-auto w-full">
         {/* Hero Logo and Animation */}
         <div className="md:h-fit mb-12 md:max-w-[500px] flex items-center flex-col justify-center mx-auto">
@@ -109,20 +76,18 @@ export default function Landing() {
           </div>
         </div>
 
-
         {/* Main Action Buttons */}
         <div className="flex flex-col md:flex-row md:gap-6 gap-4 justify-center items-center mb-12">
           <Button
             onClick={() => setShowCreateModal(true)}
             size="lg"
             className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-white-500 md:px-8 md:py-7 text-xl py-7 font-semibold group"
-            disabled={createRoomMutation.isPending}
             data-testid="button-create-room"
           >
             <span>
               <FaPlus style={{ width: "18px", height: "18px" }} />
             </span>
-            {createRoomMutation.isPending ? "Creating..." : "Create Room"}
+            Create Room
           </Button>
 
           <Button
@@ -141,19 +106,14 @@ export default function Landing() {
         {/* Features Grid */}
         <div className="grid md:grid-cols-4 gap-4 max-w-7xl mx-auto w-full pb-6 md:pb-0">
           {features.map((feature, index) => {
-            const IconComponent = feature.icon;
             return (
-              <GlassPanel
-                key={index}
-                className="p-6 text-center group transition-transform duration-100"
-                data-testid={`feature-card-${index}`}
-              >
-                <div className={`text-4xl mb-4 ${feature.color}`}>
-                  <IconComponent className="w-12 h-12 mx-auto" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-300">{feature.description}</p>
-              </GlassPanel>
+              <FeatureCard
+                Icon={feature.icon}
+                title={feature.title}
+                description={feature.description}
+                color={feature.color}
+                index={index}
+              />
             );
           })}
         </div>
