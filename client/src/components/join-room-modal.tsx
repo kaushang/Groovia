@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,6 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
       apiRequest("POST", `/api/rooms/code/${roomCode}`, { username }),
     onSuccess: async (response) => {
       const res = await response.json();
-      // Backend now returns { room, userId }
       const userId = res.userId;
       
       sessionStorage.setItem("userId", userId);
@@ -53,7 +51,6 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedUsername = username.trim();
-    const code = roomCode.trim().toUpperCase();
     if (trimmedUsername.length === 0) {
       toast({
         title: "Username required",
@@ -62,7 +59,7 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
       });
       return;
     }
-    if (code.length === 6) {
+    if (roomCode.length === 6) {
       joinRoomMutation.mutate({ username: trimmedUsername });
     } else {
       toast({

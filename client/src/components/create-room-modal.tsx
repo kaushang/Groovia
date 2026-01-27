@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,6 @@ export default function CreateRoomModal({
 }: CreateRoomModalProps) {
   const [roomName, setRoomName] = useState("");
   const [username, setUsername] = useState("");
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const navigate = useNavigate();
 
