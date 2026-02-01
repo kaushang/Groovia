@@ -322,6 +322,12 @@ io.on("connection", (socket) => {
     // Broadcast to everyone else in the room
     socket.to(roomId).emit("loopToggled", { isLooping });
   });
+
+  // Sync Loop Range (A-B Repeat)
+  socket.on("updateLoopRange", (data: { roomId: string; loopStart: number | null; loopEnd: number | null; isLoopingRange: boolean }) => {
+    const { roomId, loopStart, loopEnd, isLoopingRange } = data;
+    socket.to(roomId).emit("loopRangeUpdated", { loopStart, loopEnd, isLoopingRange });
+  });
 });
 
 // Add WebSocket-related API endpoints

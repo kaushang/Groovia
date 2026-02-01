@@ -68,6 +68,11 @@ export default function Room() {
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
+  // A-B Loop State
+  const [isLoopingRange, setIsLoopingRange] = useState(false);
+  const [loopStart, setLoopStart] = useState<number | null>(null);
+  const [loopEnd, setLoopEnd] = useState<number | null>(null);
+
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [listenerCount, setListenerCount] = useState(0);
   const { toast } = useToast();
@@ -254,6 +259,12 @@ export default function Room() {
         } else {
           setIsLooping(false);
         }
+
+        // Reset A-B Loop Range for new song
+        setIsLoopingRange(false);
+        setLoopStart(null);
+        setLoopEnd(null);
+
         lastActiveSongIdRef.current = currentQueueItemId;
       }
     }
@@ -448,6 +459,14 @@ export default function Room() {
     socket.on("loopToggled", (data) => {
       console.log("🔁 Received loop update:", data);
       setIsLooping(data.isLooping);
+    });
+
+    // ✅ Sync Loop Range Listener
+    socket.on("loopRangeUpdated", (data) => {
+      console.log("🔁 Received range loop update:", data);
+      setIsLoopingRange(data.isLoopingRange);
+      setLoopStart(data.loopStart);
+      setLoopEnd(data.loopEnd);
     });
 
     // Cleanup on unmount
@@ -749,12 +768,29 @@ export default function Room() {
       }
     };
 
+    const handleRangeCheckout = () => {
+      if (isLoopingRange && loopStart !== null && loopEnd !== null) {
+        if (currentTime >= loopEnd) {
+          // Seek to start
+          if (audioRef.current) audioRef.current.currentTime = loopStart;
+          if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+            playerRef.current.seekTo(loopStart, true);
+          }
+          setCurrentTime(loopStart);
+        }
+      }
+    }
+
     if (youtubeVideoId) {
       updateProgress();
-      interval = setInterval(updateProgress, 100);
+      handleRangeCheckout(); // Check range loop
+      interval = setInterval(() => {
+        updateProgress();
+        handleRangeCheckout();
+      }, 100);
     }
     return () => clearInterval(interval);
-  }, [youtubeVideoId, isHost, roomId]);
+  }, [youtubeVideoId, isHost, roomId, isLoopingRange, loopStart, loopEnd, currentTime]);
 
   if (isLoading) {
     return (
@@ -1144,6 +1180,13 @@ export default function Room() {
                   lastEmitTimeRef.current = now;
                 }
               }
+
+              // Check A-B Loop
+              if (isLoopingRange && loopStart !== null && loopEnd !== null) {
+                if (e.currentTarget.currentTime >= loopEnd) {
+                  e.currentTarget.currentTime = loopStart;
+                }
+              }
             }}
             onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           />
@@ -1260,8 +1303,32 @@ export default function Room() {
                   onClick={handleSeek}
                 >
                   <div className={`absolute inset-0 rounded-full transition-colors ${isHost ? "hover:bg-white/5" : ""}`}></div>
+
+                  {/* Loop Range Indicators */}
+                  {loopStart !== null && (
+                    <div
+                      className="absolute bg-purple-500/50 h-full"
+                      style={{
+                        left: `${(loopStart / (duration || 1)) * 100}%`,
+                        width: loopEnd ? `${((loopEnd - loopStart) / (duration || 1)) * 100}%` : '2px'
+                      }}
+                    />
+                  )}
+                  {loopStart !== null && (
+                    <div
+                      className="absolute h-3 w-0.5 bg-purple-400 top-1/2 -translate-y-1/2"
+                      style={{ left: `${(loopStart / (duration || 1)) * 100}%` }}
+                    />
+                  )}
+                  {loopEnd !== null && (
+                    <div
+                      className="absolute h-3 w-0.5 bg-purple-400 top-1/2 -translate-y-1/2"
+                      style={{ left: `${(loopEnd / (duration || 1)) * 100}%` }}
+                    />
+                  )}
+
                   <div
-                    className="bg-white h-full rounded-full relative"
+                    className="bg-white h-full rounded-full relative z-10"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                   >
                     {isHost && (
@@ -1273,7 +1340,70 @@ export default function Room() {
               </div>
 
               {/* Controls */}
-              <div className="flex items-center justify-center gap-4">
+              <div className="relative flex items-center justify-center gap-4 w-full px-4">
+
+                {/* A-B Loop Button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`absolute left-0 w-12 h-8 transition-all disabled:opacity-30 hover:bg-transparent disabled:cursor-not-allowed ${isLoopingRange
+                    ? "text-purple-400 hover:text-purple-400 font-bold"
+                    : loopStart !== null
+                      ? "text-purple-300 hover:text-purple-300"
+                      : "text-white/70 hover:text-white"
+                    }`}
+                  onClick={() => {
+                    let nextStart = loopStart;
+                    let nextEnd = loopEnd;
+                    let nextActive = isLoopingRange;
+
+                    if (!loopStart) {
+                      // State 1: Set Start
+                      nextStart = currentTime;
+                      nextActive = false;
+                      toast({ title: "Point A set", description: "Click again to set Point B" });
+                    } else if (!loopEnd) {
+                      if (currentTime > loopStart) {
+                        // State 2: Set End
+                        nextEnd = currentTime;
+                        nextActive = true;
+                        toast({ title: "Loop Range Active", description: "Playing A-B Loop" });
+                      } else {
+                        // Reset if B < A (user clicked earlier)
+                        nextStart = currentTime;
+                        nextEnd = null;
+                        nextActive = false;
+                        toast({ title: "Point A updated", description: "Click again to set Point B" });
+                      }
+                    } else {
+                      // State 3: Clear
+                      nextStart = null;
+                      nextEnd = null;
+                      nextActive = false;
+                      toast({ title: "Loop Cleared" });
+                    }
+
+                    setLoopStart(nextStart);
+                    setLoopEnd(nextEnd);
+                    setIsLoopingRange(nextActive);
+
+                    if (socketRef.current) {
+                      socketRef.current.emit("updateLoopRange", {
+                        roomId,
+                        loopStart: nextStart,
+                        loopEnd: nextEnd,
+                        isLoopingRange: nextActive
+                      });
+                    }
+                  }}
+                  disabled={!isHost}
+                  title={isLoopingRange ? "Clear A-B Loop" : loopStart ? "Set Point B" : "Set Point A"}
+                >
+                  <span className="text-xs font-mono font-bold border border-current rounded px-1">
+                    {isLoopingRange ? "A-B" : loopStart ? "A..." : "A-B"}
+                  </span>
+                </Button>
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1310,7 +1440,7 @@ export default function Room() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`w-8 h-8 absolute right-7 transition-all scale-125 transform disabled:opacity-30 hover:bg-transparent disabled:cursor-not-allowed hover:text-white-50 ${isLooping ? "text-purple-400 hover:text-purple-400" : "text-white/70"
+                  className={`w-8 h-8 absolute right-0 transition-all scale-125 transform disabled:opacity-30 hover:bg-transparent disabled:cursor-not-allowed hover:text-white-50 ${isLooping ? "text-purple-400 hover:text-purple-400" : "text-white/70"
                     }`}
                   onClick={() => {
                     const newState = !isLooping;
