@@ -1,43 +1,11 @@
 import { useParams, useLocation } from "wouter";
 import DoubleMarquee from "@/components/double-marquee";
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useSearchParams } from "react-router-dom";
-import {
-  Music,
-  Search,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  Users,
-  Share,
-  QrCode,
-  ExternalLink,
-  LogOut,
-  ChevronUp,
-  ChevronDown,
-  Plus,
-  Shuffle,
-  Trash2,
-  Copy,
-  // loader,
-  X,
-  History,
-  RotateCcw,
-  Loader2,
-  Repeat,
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Users, LogOut, Copy } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -50,21 +18,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import LeaveRoomModal from "@/components/leave-room-modal";
-
+import SongSearch from "@/components/room components/song-search";
+import Player from "@/components/room components/room-player";
+import QueueList from "@/components/room components/queue-list";
+import MobileNavigation from "@/components/room components/mobile-navigation";
+import JoinRoomModal from "@/components/join-room-modal";
 
 import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Song } from "@shared/schema";
 import { io, Socket } from "socket.io-client";
-import { AnimatePresence, motion } from "framer-motion";
-import YouTube from "react-youtube";
 
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
   const [, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
@@ -85,17 +52,15 @@ export default function Room() {
   const lastEmitTimeRef = useRef(0);
   const lastActiveSongIdRef = useRef<string | null>(null);
   const isHostRef = useRef(false);
-  const [location] = useLocation();
   const userIdParam = searchParams.get("user");
   const [userId, setUserId] = useState<string | null>(userIdParam);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
-  const [joinUsername, setJoinUsername] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [activeTab, setActiveTab] = useState<'search' | 'player' | 'queue'>('player');
-  const [activeQueueTab, setActiveQueueTab] = useState<'up-next' | 'history'>('up-next');
-  const [slideDirection, setSlideDirection] = useState(0); // -1 for left, 1 for right
+  const [activeTab, setActiveTab] = useState<"search" | "player" | "queue">(
+    "player",
+  );
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
@@ -103,14 +68,6 @@ export default function Room() {
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500); // delay in ms
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   // Check if we need to show join dialog
   useEffect(() => {
@@ -171,48 +128,6 @@ export default function Room() {
     };
   }, []);
 
-  const joinRoomMutation = useMutation({
-    mutationFn: async () => {
-      if (!joinUsername.trim() || !room?.code) {
-        throw new Error("Validation failed");
-      }
-      return apiRequest("POST", `/api/rooms/code/${room.code}`, {
-        username: joinUsername,
-      });
-    },
-    onSuccess: async (response) => {
-      const res = await response.json();
-      const newUserId = res.userId;
-
-      // Save to session
-      sessionStorage.setItem("userId", newUserId);
-      setUserId(newUserId);
-
-      // Update URL
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set("user", newUserId);
-      setLocation(`/room/${roomId}?${newParams.toString()}`);
-
-      setShowJoinDialog(false);
-      toast({
-        title: "Joined Room",
-        description: `Welcome, ${joinUsername}!`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Failed to join",
-        description: "Could not join the room. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleJoinRoom = () => {
-    if (joinRoomMutation.isPending) return;
-    joinRoomMutation.mutate();
-  };
-
   const { data: room, isLoading } = useQuery({
     queryKey: ["room", roomId],
     queryFn: async () => {
@@ -225,15 +140,13 @@ export default function Room() {
 
   const activeSong = room?.queueItems?.find((item: any) => item.isPlaying);
 
-  const currentUser = room?.members?.find((m: any) => {
-    const mId = m.userId?._id || m.userId;
-    return mId === userId;
-  })?.userId;
-
-  const isHost = Boolean(room && userId && (
-    (typeof room.createdBy === 'string' && room.createdBy === userId) ||
-    typeof room.createdBy === 'object' && room.createdBy?._id?.toString() === userId.toString()
-  ));
+  const isHost = Boolean(
+    room &&
+    userId &&
+    ((typeof room.createdBy === "string" && room.createdBy === userId) ||
+      (typeof room.createdBy === "object" &&
+        room.createdBy?._id?.toString() === userId.toString())),
+  );
 
   // Handle loop state persistence and reset on song change
   useEffect(() => {
@@ -427,7 +340,7 @@ export default function Room() {
 
       // Update the correct query key: ["room", roomId]
       queryClient.setQueryData(["room", roomId], (oldData: any) =>
-        oldData ? { ...oldData, queueItems: data.queueItems } : oldData
+        oldData ? { ...oldData, queueItems: data.queueItems } : oldData,
       );
 
       if (data.votedBy?.userId !== userId) {
@@ -478,40 +391,17 @@ export default function Room() {
     };
   }, [roomId, userId, toast, queryClient]);
 
-  const {
-    data,
-    isLoading: isSearching,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage
-  } = useInfiniteQuery({
-    queryKey: ["/search", { q: debouncedQuery }],
-    queryFn: async ({ pageParam = 0 }) => {
-      const res = await axios.get<any>("/search", {
-        params: { q: debouncedQuery, offset: pageParam },
-      });
-      return res.data.tracks;
-    },
-    getNextPageParam: (lastPage, allPages) => {
-      return lastPage.length === 10 ? allPages.length * 10 : undefined;
-    },
-    enabled: debouncedQuery.length > 0,
-    initialPageParam: 0,
-  });
-
   const { data: recommendations } = useQuery({
     queryKey: ["recommendations", activeSong?.song?.spotifyId],
     queryFn: async () => {
       if (!activeSong?.song?.spotifyId) return [];
       const res = await axios.get("/api/recommendations", {
-        params: { seed_track: activeSong.song.spotifyId }
+        params: { seed_track: activeSong.song.spotifyId },
       });
       return res.data.tracks;
     },
     enabled: !!activeSong?.song?.spotifyId,
   });
-
-  const searchResults = data?.pages.flat() || [];
 
   const searchYouTube = async (query: string, songId?: string) => {
     try {
@@ -519,14 +409,16 @@ export default function Room() {
       const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
 
       if (!apiKey) {
-        console.error("YouTube API Key is missing! Make sure VITE_YOUTUBE_API_KEY is set in .env");
+        console.error(
+          "YouTube API Key is missing! Make sure VITE_YOUTUBE_API_KEY is set in .env",
+        );
         return;
       }
 
       const response = await fetch(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(
-          query
-        )}&key=${apiKey}`
+          query,
+        )}&key=${apiKey}`,
       );
       const data = await response.json();
       console.log("YouTube Search Results:", data);
@@ -538,7 +430,9 @@ export default function Room() {
         // Save to server if we have a songId
         if (songId) {
           try {
-            await axios.post(`/api/songs/${songId}/youtube-id`, { youtubeId: videoId });
+            await axios.post(`/api/songs/${songId}/youtube-id`, {
+              youtubeId: videoId,
+            });
             console.log("✅ Saved YouTube ID to server");
           } catch (err) {
             console.error("Failed to save YouTube ID:", err);
@@ -561,9 +455,14 @@ export default function Room() {
 
       // 2. If not, search YouTube and save it
       setYoutubeVideoId(null);
-      const artistName = Array.isArray(activeSong.song.artists) ? activeSong.song.artists.join(" ") : activeSong.song.artist;
+      const artistName = Array.isArray(activeSong.song.artists)
+        ? activeSong.song.artists.join(" ")
+        : activeSong.song.artist;
       // Pass the song ID so we can save the result
-      searchYouTube(`${activeSong.song.title} ${artistName}`, activeSong.song._id || activeSong.song.id);
+      searchYouTube(
+        `${activeSong.song.title} ${artistName}`,
+        activeSong.song._id || activeSong.song.id,
+      );
     } else {
       setYoutubeVideoId(null);
     }
@@ -574,7 +473,9 @@ export default function Room() {
       apiRequest("POST", `/api/rooms/${roomId}/queue`, {
         spotifyId: song.id,
         title: song.name,
-        artist: Array.isArray(song.artists) ? song.artists.join(", ") : song.artists,
+        artist: Array.isArray(song.artists)
+          ? song.artists.join(", ")
+          : song.artists,
         cover: song.image,
         duration: song.duration,
         url: song.preview_url,
@@ -609,7 +510,13 @@ export default function Room() {
   });
 
   const voteMutation = useMutation({
-    mutationFn: async ({ queueItemId, voteType }: { queueItemId: string; voteType: "up" | "down"; }) => {
+    mutationFn: async ({
+      queueItemId,
+      voteType,
+    }: {
+      queueItemId: string;
+      voteType: "up" | "down";
+    }) => {
       if (!roomId || !userId) throw new Error("Missing required data");
 
       return apiRequest("POST", `/api/queue/${queueItemId}/vote`, {
@@ -623,11 +530,13 @@ export default function Room() {
       toast({ title: "Vote recorded" });
     },
     onError: (error: any) => {
-      toast({ title: "Failed to vote", description: error.message || "Try again", variant: "destructive" });
+      toast({
+        title: "Failed to vote",
+        description: error.message || "Try again",
+        variant: "destructive",
+      });
     },
   });
-
-
 
   // CLIENT SIDE - Add more debugging
   const leaveRoomMutation = useMutation({
@@ -636,7 +545,7 @@ export default function Room() {
 
       if (!roomId || !userId) {
         throw new Error(
-          `Missing required data: roomId=${roomId}, userId=${userId}`
+          `Missing required data: roomId=${roomId}, userId=${userId}`,
         );
       }
 
@@ -684,7 +593,9 @@ export default function Room() {
       audioRef.current?.pause();
       playerRef.current?.pauseVideo();
     } else {
-      audioRef.current?.play().catch((e) => console.log("Audio playback failed:", e));
+      audioRef.current
+        ?.play()
+        .catch((e) => console.log("Audio playback failed:", e));
       playerRef.current?.playVideo();
     }
     setIsPlaying(!isPlaying);
@@ -720,12 +631,14 @@ export default function Room() {
     const percentage = x / width;
 
     // Use stored duration or fallback to song metadata (converted to seconds if needed)
-    const songDuration = activeSong.song.duration ? activeSong.song.duration / 1000 : 0;
+    const songDuration = activeSong.song.duration
+      ? activeSong.song.duration / 1000
+      : 0;
     const totalDuration = duration || songDuration || 0;
     const newTime = percentage * totalDuration;
 
     if (audioRef.current) audioRef.current.currentTime = newTime;
-    if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+    if (playerRef.current && typeof playerRef.current.seekTo === "function") {
       playerRef.current.seekTo(newTime, true);
     }
 
@@ -735,7 +648,9 @@ export default function Room() {
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying && activeSong) {
-        audioRef.current.play().catch(e => console.log("Playback failed:", e));
+        audioRef.current
+          .play()
+          .catch((e) => console.log("Playback failed:", e));
       } else {
         audioRef.current.pause();
       }
@@ -747,20 +662,24 @@ export default function Room() {
     let interval: NodeJS.Timeout;
 
     const updateProgress = () => {
-      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+      if (
+        playerRef.current &&
+        typeof playerRef.current.getCurrentTime === "function"
+      ) {
         const time = playerRef.current.getCurrentTime();
         const dur = playerRef.current.getDuration();
-        if (typeof time === 'number') setCurrentTime(time);
+        if (typeof time === "number") setCurrentTime(time);
         if (dur) setDuration(dur);
 
         // Host emits updates
-        if (isHost && socketRef.current && typeof time === 'number') {
+        if (isHost && socketRef.current && typeof time === "number") {
           const now = Date.now();
-          if (now - lastEmitTimeRef.current > 1000) { // Emit every 1s
+          if (now - lastEmitTimeRef.current > 1000) {
+            // Emit every 1s
             socketRef.current.emit("updateTime", {
               roomId,
               currentTime: time,
-              duration: dur || 0
+              duration: dur || 0,
             });
             lastEmitTimeRef.current = now;
           }
@@ -773,13 +692,16 @@ export default function Room() {
         if (currentTime >= loopEnd) {
           // Seek to start
           if (audioRef.current) audioRef.current.currentTime = loopStart;
-          if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+          if (
+            playerRef.current &&
+            typeof playerRef.current.seekTo === "function"
+          ) {
             playerRef.current.seekTo(loopStart, true);
           }
           setCurrentTime(loopStart);
         }
       }
-    }
+    };
 
     if (youtubeVideoId) {
       updateProgress();
@@ -790,7 +712,15 @@ export default function Room() {
       }, 100);
     }
     return () => clearInterval(interval);
-  }, [youtubeVideoId, isHost, roomId, isLoopingRange, loopStart, loopEnd, currentTime]);
+  }, [
+    youtubeVideoId,
+    isHost,
+    roomId,
+    isLoopingRange,
+    loopStart,
+    loopEnd,
+    currentTime,
+  ]);
 
   if (isLoading) {
     return (
@@ -815,7 +745,6 @@ export default function Room() {
       </div>
     );
   }
-
 
   return (
     <div className="h-screen flex flex-col pt-2 pb-8 overflow-hidden">
@@ -845,7 +774,9 @@ export default function Room() {
 
             <div className="flex  justify-between text-sm font-medium px-1 py-1 text-gray-200 md:bg-transparent rounded-xl mb-1 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all md:hover:bg-transparent">
               <div className="flex items-center flex-row mr-2">
-                <span className="text-gray-400 mr-2 text-sm uppercase tracking-wider">Room Code:</span>
+                <span className="text-gray-400 mr-2 text-sm uppercase tracking-wider">
+                  Room Code:
+                </span>
                 <span
                   className="font-mono font-bold tracking-wider text-white"
                   data-testid="room-code"
@@ -874,7 +805,8 @@ export default function Room() {
                   <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/10 rounded-full bg-white/10">
                     <Users className="w-3.5 h-3.5 mr-2 text-purple-300" />
                     <span className="flex items-center py-1 decoration-white/30 underline-offset-4">
-                      {listenerCount} <span className="md:inline ml-1">listeners</span>
+                      {listenerCount}{" "}
+                      <span className="md:inline ml-1">listeners</span>
                     </span>
                   </button>
                 </SheetTrigger>
@@ -894,48 +826,75 @@ export default function Room() {
                       <div className="space-y-2">
                         <div className="flex flex-row items-center">
                           {/* <Users className="w-6 h-6 text-purple-400" /> */}
-                          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2 ml-2">Listeners</h4>
-                          <Badge variant="outline" className=" ml-2 border-purple-300/50 px-2 text-purple-300">
+                          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2 ml-2">
+                            Listeners
+                          </h4>
+                          <Badge
+                            variant="outline"
+                            className=" ml-2 border-purple-300/50 px-2 text-purple-300"
+                          >
                             {room?.members?.length || 0}
                           </Badge>
                         </div>
-                        {[...(room?.members || [])].sort((a: any, b: any) => {
-                          const aId = (a.userId?._id || a.userId)?.toString();
-                          const bId = (b.userId?._id || b.userId)?.toString();
-                          const cId = (room.createdBy?._id || room.createdBy)?.toString();
-                          if (aId === cId) return -1;
-                          if (bId === cId) return 1;
-                          return 0;
-                        }).map((member: any) => {
-                          const user = member.userId;
-                          const isMe = (user._id || user) === userId;
-                          const cId = (room.createdBy?._id || room.createdBy)?.toString();
-                          const mId = (user._id || user)?.toString();
-                          const isHost = mId === cId;
+                        {[...(room?.members || [])]
+                          .sort((a: any, b: any) => {
+                            const aId = (a.userId?._id || a.userId)?.toString();
+                            const bId = (b.userId?._id || b.userId)?.toString();
+                            const cId = (
+                              room.createdBy?._id || room.createdBy
+                            )?.toString();
+                            if (aId === cId) return -1;
+                            if (bId === cId) return 1;
+                            return 0;
+                          })
+                          .map((member: any) => {
+                            const user = member.userId;
+                            const isMe = (user._id || user) === userId;
+                            const cId = (
+                              room.createdBy?._id || room.createdBy
+                            )?.toString();
+                            const mId = (user._id || user)?.toString();
+                            const isHost = mId === cId;
 
-                          return (
-                            <div key={user._id || user} className="flex items-center rounded-sm gap-3 p-1 hover:bg-white/5 transition-colors group">
-                              <Avatar className={`h-9 w-9 border ${isHost ? 'border-purple-400 ring-2 ring-purple-400/30 shadow-[0_0_8px_rgba(192,132,252,0.4)]' : 'border-white/10'}`}>
-                                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || user}`} />
-                                <AvatarFallback className="bg-gray-800 text-gray-300">
-                                  {(user.username?.[0] || "U").toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-1">
-                                  {/* {isMe} */}
-                                  {user.username || "Unknown"}
-                                  {isHost && (
-                                    <>
-                                      <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">Host</span>
-                                    </>
-                                  )}
-                                  {isMe && <Badge variant="secondary" className="text-[12px] pt-1 text-white/80 bg-transparent">(You)</Badge>}
-                                </span>
+                            return (
+                              <div
+                                key={user._id || user}
+                                className="flex items-center rounded-sm gap-3 p-1 hover:bg-white/5 transition-colors group"
+                              >
+                                <Avatar
+                                  className={`h-9 w-9 border ${isHost ? "border-purple-400 ring-2 ring-purple-400/30 shadow-[0_0_8px_rgba(192,132,252,0.4)]" : "border-white/10"}`}
+                                >
+                                  <AvatarImage
+                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || user}`}
+                                  />
+                                  <AvatarFallback className="bg-gray-800 text-gray-300">
+                                    {(user.username?.[0] || "U").toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-1">
+                                    {/* {isMe} */}
+                                    {user.username || "Unknown"}
+                                    {isHost && (
+                                      <>
+                                        <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">
+                                          Host
+                                        </span>
+                                      </>
+                                    )}
+                                    {isMe && (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[12px] pt-1 text-white/80 bg-transparent"
+                                      >
+                                        (You)
+                                      </Badge>
+                                    )}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
                       </div>
                     </div>
                   </ScrollArea>
@@ -968,181 +927,27 @@ export default function Room() {
         </div>
       </div>
 
-
-
-
-
-
       {/* Join Room Dialog */}
-      <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
-        <DialogContent
-          className="glass-panel border-white/20 bg-gray text-white max-w-[364px] sm:max-w-md [&>button]:hidden"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle className="text-3xl font-bold mb-0 text-center">
-              Join Room
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 pt-4">
-            <div>
-              <Input
-                id="username"
-                placeholder="Enter Username"
-                value={joinUsername}
-                onChange={(e) => {
-                  let value = e.target.value;
-                  if (value.length > 16) value = value.slice(0, 16);
-                  setJoinUsername(value);
-                }}
-                className="bg-white/10 border-white/20 placeholder:text-white-400 text-lg tracking-widest mt-2 p-5"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !joinRoomMutation.isPending) handleJoinRoom();
-                }}
-              />
-            </div>
-
-            <div className="flex space-x-3">
-              <Button
-                type="button"
-                onClick={() => setLocation("/")}
-                variant="ghost"
-                className="flex-1 glass-panel hover:bg-white/10 hover:text-white"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleJoinRoom}
-                disabled={joinRoomMutation.isPending}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600"
-              >
-                {joinRoomMutation.isPending ? "Joining..." : "Join Room"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <JoinRoomModal
+        isOpen={showJoinDialog}
+        onClose={() => setShowJoinDialog(false)}
+        initialCode={room?.code}
+        onCancel={() => setLocation("/")}
+      />
 
       {/* Three Column Layout - Adaptive Grid/Tabs */}
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_2fr_1fr] gap-2 lg:gap-2 lg:px-6 px-4 flex-1 min-h-0 lg:pb-6 relative w-full">
         {/* Search and Add Songs */}
-        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col ${activeTab === 'search' ? 'flex' : 'hidden lg:flex'}`}>
-          <h2 className="text-2xl font-bold mb-4 flex items-center justify-center text-white">
-            <Search className="w-6 h-6 mr-3 text-purple-300" />
-            Add Songs
-          </h2>
-
-          <div className="relative space-y-2 mb-4">
-            <Input
-              type="text"
-              placeholder="Search for songs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-2 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400"
-              data-testid="input-search-songs"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-4 text-white hover:text-white/60 transition-colors"
-                title="Clear search"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-
-          {/* Search Results */}
-          <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
-            {isSearching || (searchQuery !== debouncedQuery && searchQuery.length > 0) ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-
-                <div className="flex items-center gap-2 py-1">
-                  <img
-                    src="/groovia_icon.png"
-                    alt=""
-                    className="w-10 h-10 animate-spin-reverse-slow"
-                  />
-                  {/* <p className="test-xs text-white/80">Loading</p> */}
-                </div>
-              </div>
-            ) : searchResults.length > 0 ? (
-              <>
-                {searchResults.map((song: any) => (
-                  <div
-                    key={song.id}
-                    className="flex items-center p-2 mr-1 rounded-sm hover:bg-white/10 transition-all group"
-                    data-testid={`search-result-${song.id}`}
-                  >
-                    <img
-                      src={song.image}
-                      alt={`${song.name} artwork`}
-                      className="w-12 h-12 rounded-sm object-cover mr-2"
-                    />
-                    <div className="flex-1 min-w-0 mr-2">
-                      <DoubleMarquee
-                        text1={song.name}
-                        text2={Array.isArray(song.artists) ? song.artists.join(", ") : song.artists}
-                        className1="font-semibold text-sm text-white"
-                        className2="text-gray-400 text-xs"
-                      />
-                    </div>
-                    <div className="text-gray-400 text-xs mr-2">
-                      {formatTime(song.duration / 1000)}
-                    </div>
-                    <Button
-                      // size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        addToQueueMutation.mutate(song);
-                      }}
-                      disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id}
-                      className="h-8 w-8 md:h-10 md:w-10 md:opacity-0 opacity-1 group-hover:opacity-100 hover:bg-purple transition-opacity bg-purple-600 rounded-[50%]"
-                      data-testid={`button-add-song-${song.id}`}
-                    >
-                      {addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id ? (
-                        <Loader2 style={{ width: 20, height: 20 }} className="text-white animate-spin" />
-                      ) : (
-                        <Plus className="w-6 h-6 text-white" strokeWidth={4} />
-                      )}
-                    </Button>
-                  </div>
-                ))}
-
-                {hasNextPage && (
-                  <div
-                    onClick={() => fetchNextPage()}
-                    className="text-center pt-2 mr-1 mx-auto cursor-pointer text-sm transition-colors border-t border-white/10 mt-2"
-                  >
-                    {isFetchingNextPage ? (
-                      <div className="flex items-center justify-center gap-2">
-                        {/* <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div> */}
-                        <img
-                          src="/groovia_icon.png"
-                          alt=""
-                          className="w-4 h-4 animate-spin-reverse-slow"
-                        />
-                        <span className="text-sm text-white/80">Loading more...</span>
-                      </div>
-                    ) : (
-                      <span className="text-white/80 text-sm underline">more results</span>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : debouncedQuery.length > 0 ? (
-              <div className="h-full flex items-center justify-center min-h-[200px]">
-                <p className="text-gray-400">No results found</p>
-              </div>
-            ) : null}
-          </div>
-        </GlassPanel>
+        <SongSearch
+          className={activeTab === "search" ? "flex" : "hidden lg:flex"}
+          addToQueueMutation={addToQueueMutation}
+          formatTime={formatTime}
+        />
 
         {/* Audio Player - Hidden but functional, only for Creator */}
-        {(room?.createdBy === userId || (typeof room?.createdBy === 'object' && room?.createdBy?._id === userId)) && (
+        {(room?.createdBy === userId ||
+          (typeof room?.createdBy === "object" &&
+            room?.createdBy?._id === userId)) && (
           <audio
             ref={audioRef}
             src={activeSong?.song?.url}
@@ -1175,7 +980,7 @@ export default function Room() {
                   socketRef.current.emit("updateTime", {
                     roomId,
                     currentTime: e.currentTarget.currentTime,
-                    duration: e.currentTarget.duration
+                    duration: e.currentTarget.duration,
                   });
                   lastEmitTimeRef.current = now;
                 }
@@ -1192,722 +997,78 @@ export default function Room() {
           />
         )}
 
-
-
-
-
-
         {/* Now Playing */}
-        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col lg:flex-row items-center ${activeSong ? "lg:items-start lg:justify-start" : "lg:items-center lg:justify-center"} text-center ${activeSong ? "lg:text-left" : "lg:text-center"} overflow-hidden ${activeTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
-          {/* Left Column: Player */}
-          <div className={`w-full ${activeSong ? "lg:w-1/2" : "lg:w-3/4"} flex flex-col items-center text-center overflow-y-auto overflow-x-hidden h-full custom-scrollbar pr-1`}>
-            <h2 className="text-2xl font-bold mb-4 flex items-center text-white justify-center top-0 bg-transparent z-10">
-              <Play className="w-6 h-6 mr-3 text-green-400" />
-              Now Playing
-            </h2>
-
-            {/* Media Area - Fixed container to prevent layout shifts */}
-            <div className="w-full mb-2 min-h-fit">
-              {activeSong ? (
-                youtubeVideoId ? (
-                  <div className="w-full">
-                    {(room?.createdBy === userId || (typeof room?.createdBy === 'object' && room?.createdBy?._id === userId)) ? (
-                      <YouTube
-                        videoId={youtubeVideoId}
-                        opts={{
-                          height: '100%',
-                          width: '100%',
-                          playerVars: {
-                            autoplay: 1,
-                            controls: 0,
-                          },
-                        }}
-                        onReady={(e: { target: any; }) => {
-                          playerRef.current = e.target;
-                          e.target.playVideo();
-                        }}
-                        onStateChange={(e: { data: number; }) => {
-                          // Sync state with player events (1 = playing, 2 = paused)
-                          if (e.data === 1) setIsPlaying(true);
-                          if (e.data === 2) setIsPlaying(false);
-                        }}
-                        onEnd={() => {
-                          if (isLooping && playerRef.current) {
-                            playerRef.current.seekTo(0);
-                            playerRef.current.playVideo();
-                          } else {
-                            handleNext();
-                          }
-                        }}
-                        className="rounded-xl w-full aspect-video"
-                        iframeClassName="rounded-xl w-full h-full"
-                      />
-                    ) : (
-                      <div className="relative w-full aspect-video rounded-xl overflow-hidden group bg-black/40">
-                        <img
-                          src={`https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`}
-                          alt="Now Playing"
-                          className="w-full h-full object-cover opacity-80"
-                        />
-                        <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white border border-white/10">
-                          Playing on Host's Device
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="w-full aspect-video flex items-center justify-center bg-white/5 rounded-xl border border-white/5">
-                    <div className="flex flex-row items-center ">
-
-                      <img
-                        src="/groovia_icon.png"
-                        alt=""
-                        className="h-10 w-10 animate-spin-reverse-slow"
-                      />
-                      {/* <p className="text-white/80  font-medium ml-2">Playing</p> */}
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div className="w-full aspect-video flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5">
-                  <Music className="w-16 h-16 text-white/10 mb-4" />
-                  <p className="text-white/40 font-medium">No songs in queue</p>
-                </div>
-              )}
-            </div>
-
-            {/* Song Details */}
-            <div className={`w-full flex flex-col px-2 ${activeSong ? "items-start text-left" : "items-center text-center"}`}>
-              <div className="w-full overflow-hidden relative">
-                <DoubleMarquee
-                  text1={activeSong?.song?.title || "Haven't started grooving yet?"}
-                  text2={activeSong ? (Array.isArray(activeSong.song.artists) ? activeSong.song.artists.join(", ") : activeSong.song.artist) : ""}
-                  className1={`font-bold text-white ${activeSong ? "text-lg md:text-xl" : "text-md md:text-xl"}`}
-                  className2="text-xs md:text-base text-purple-300 font-medium"
-                />
-              </div>
-              {activeSong && (
-                <p className="text-xs text-white/50 mt-2">
-                  Added by <span className="text-white/80">{activeSong?.username || "Unknown"}</span>
-                </p>
-              )}
-            </div>
-
-            {/* Playback Controls & Progress - Always Visible */}
-            <div className={`w-full bg-white/10 backdrop-blur-xl rounded-[1rem] px-6 py-4 border border-white/10 mt-4 transition-all duration-300 ${!activeSong ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-              {/* Progress Bar */}
-              <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-4 gap-3">
-                <span className="w-10 text-right">{formatTime(currentTime)}</span>
-                <div
-                  className={`flex-1 h-1.5 bg-white/10 rounded-full relative group flex items-center ${isHost ? "cursor-pointer" : "cursor-default"}`}
-                  onClick={handleSeek}
-                >
-                  <div className={`absolute inset-0 rounded-full transition-colors ${isHost ? "hover:bg-white/5" : ""}`}></div>
-
-                  {/* Loop Range Indicators */}
-                  {loopStart !== null && (
-                    <div
-                      className="absolute bg-purple-500/50 h-full"
-                      style={{
-                        left: `${(loopStart / (duration || 1)) * 100}%`,
-                        width: loopEnd ? `${((loopEnd - loopStart) / (duration || 1)) * 100}%` : '2px'
-                      }}
-                    />
-                  )}
-                  {loopStart !== null && (
-                    <div
-                      className="absolute h-3 w-0.5 bg-purple-400 top-1/2 -translate-y-1/2"
-                      style={{ left: `${(loopStart / (duration || 1)) * 100}%` }}
-                    />
-                  )}
-                  {loopEnd !== null && (
-                    <div
-                      className="absolute h-3 w-0.5 bg-purple-400 top-1/2 -translate-y-1/2"
-                      style={{ left: `${(loopEnd / (duration || 1)) * 100}%` }}
-                    />
-                  )}
-
-                  <div
-                    className="bg-white h-full rounded-full relative z-10"
-                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                  >
-                    {isHost && (
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity scale-150"></div>
-                    )}
-                  </div>
-                </div>
-                <span className="w-10 text-left">{formatTime(duration)}</span>
-              </div>
-
-              {/* Controls */}
-              <div className="relative flex items-center justify-center gap-4 w-full px-4">
-
-                {/* A-B Loop Button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`absolute left-0 w-12 h-8 transition-all disabled:opacity-30 hover:bg-transparent disabled:cursor-not-allowed ${isLoopingRange
-                    ? "text-purple-400 hover:text-purple-400 font-bold"
-                    : loopStart !== null
-                      ? "text-purple-300 hover:text-purple-300"
-                      : "text-white/70 hover:text-white"
-                    }`}
-                  onClick={() => {
-                    let nextStart = loopStart;
-                    let nextEnd = loopEnd;
-                    let nextActive = isLoopingRange;
-
-                    if (!loopStart) {
-                      // State 1: Set Start
-                      nextStart = currentTime;
-                      nextActive = false;
-                      toast({ title: "Point A set", description: "Click again to set Point B" });
-                    } else if (!loopEnd) {
-                      if (currentTime > loopStart) {
-                        // State 2: Set End
-                        nextEnd = currentTime;
-                        nextActive = true;
-                        toast({ title: "Loop Range Active", description: "Playing A-B Loop" });
-                      } else {
-                        // Reset if B < A (user clicked earlier)
-                        nextStart = currentTime;
-                        nextEnd = null;
-                        nextActive = false;
-                        toast({ title: "Point A updated", description: "Click again to set Point B" });
-                      }
-                    } else {
-                      // State 3: Clear
-                      nextStart = null;
-                      nextEnd = null;
-                      nextActive = false;
-                      toast({ title: "Loop Cleared" });
-                    }
-
-                    setLoopStart(nextStart);
-                    setLoopEnd(nextEnd);
-                    setIsLoopingRange(nextActive);
-
-                    if (socketRef.current) {
-                      socketRef.current.emit("updateLoopRange", {
-                        roomId,
-                        loopStart: nextStart,
-                        loopEnd: nextEnd,
-                        isLoopingRange: nextActive
-                      });
-                    }
-                  }}
-                  disabled={!isHost}
-                  title={isLoopingRange ? "Clear A-B Loop" : loopStart ? "Set Point B" : "Set Point A"}
-                >
-                  <span className="text-xs font-mono font-bold border border-current rounded px-1">
-                    {isLoopingRange ? "A-B" : loopStart ? "A..." : "A-B"}
-                  </span>
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform disabled:opacity-30 disabled:cursor-not-allowed"
-                  onClick={handlePrevious}
-                  disabled={!isHost}
-                >
-                  <SkipBack className="w-8 h-8" strokeWidth={1.5} />
-                </Button>
-
-                <Button
-                  size="icon"
-                  className="w-16 h-12 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-all flex items-center justify-center p-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
-                  onClick={handlePlayPause}
-                  disabled={!isHost}
-                >
-                  {isPlaying ? (
-                    <Pause className="w-7 h-7 fill-current" />
-                  ) : (
-                    <Play className="w-7 h-7 fill-current ml-1" />
-                  )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-12 h-8 text-white/70 hover:text-white hover:bg-transparent transition-all scale-150 transform disabled:opacity-30 disabled:cursor-not-allowed"
-                  onClick={handleNext}
-                  disabled={!isHost}
-                >
-                  <SkipForward className="w-8 h-8" strokeWidth={1.5} />
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`w-8 h-8 absolute right-0 transition-all scale-125 transform disabled:opacity-30 hover:bg-transparent disabled:cursor-not-allowed hover:text-white-50 ${isLooping ? "text-purple-400 hover:text-purple-400" : "text-white/70"
-                    }`}
-                  onClick={() => {
-                    const newState = !isLooping;
-                    setIsLooping(newState);
-                    const currentQueueItemId = activeSong?._id || activeSong?.id;
-                    if (currentQueueItemId) {
-                      localStorage.setItem("groovia_loop_state", JSON.stringify({
-                        queueItemId: currentQueueItemId,
-                        isLooping: newState
-                      }));
-                    }
-                    if (socketRef.current) {
-                      socketRef.current.emit("toggleLoop", {
-                        roomId,
-                        isLooping: newState
-                      });
-                    }
-                  }}
-                  disabled={!isHost}
-                  title={isLooping ? "Disable Loop" : "Enable Loop"}
-                >
-                  <Repeat className="w-6 h-6" strokeWidth={isLooping ? 2.5 : 1.5} />
-                </Button>
-              </div>
-            </div>
-
-            {/* Mobile Recommendations (Visible only on mobile) */}
-            {activeSong && (
-              <div className="lg:hidden w-full flex flex-col mt-6 pt-4 border-t border-white/10">
-                <h3 className="text-lg font-bold mb-3 text-white text-center flex items-center pl-2">
-                  Related songs
-                </h3>
-
-                <div className="space-y-2 pb-4">
-                  {!recommendations ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-14 bg-white/5 animate-pulse rounded-lg"></div>
-                      ))}
-                    </div>
-                  ) : recommendations.length === 0 ? (
-                    <div className="text-center text-white/40 py-4">
-                      No recommendations found
-                    </div>
-                  ) : (
-                    recommendations.slice(0, 10).map((song: any) => (
-                      <div
-                        key={`mobile-${song.id}`}
-                        className="flex items-center p-2 rounded-sm hover:bg-white/10 transition-all group "
-                      >
-                        <img
-                          src={song.image}
-                          alt={song.name}
-                          className="w-12 h-12 rounded-sm object-cover mr-2"
-                        />
-                        <div className="flex-1 min-w-0 mr-2">
-                          <DoubleMarquee
-                            text1={song.name}
-                            text2={Array.isArray(song.artists) ? song.artists.join(", ") : song.artists}
-                            className1="font-semibold text-sm text-white text-left"
-                            className2="text-gray-400 text-xs text-left"
-                          />
-                        </div>
-                        <div className="text-gray-400 text-xs mr-2">
-                          {formatTime(song.duration / 1000)}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => addToQueueMutation.mutate(song)}
-                          disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id}
-                          className="h-8 w-8 md:h-10 md:w-10 opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-purple-600 transition-opacity bg-purple-600 rounded-[50%]"
-                        >
-                          {addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id ? (
-                            <Loader2 style={{ width: 20, height: 20 }} className="w-6 h-6 text-white animate-spin" />
-                          ) : (
-                            <Plus className="w-6 h-6 text-white" strokeWidth={4} />
-                          )}
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column: Recommendations */}
-          {activeSong && (
-            <div className="hidden lg:flex w-1/2 flex-col h-full overflow-hidden pl-2 border-white/10">
-              <h3 className="text-2xl font-bold mb-4 text-white text-center mx-auto px-2 flex items-center pl-2">
-                Related songs
-              </h3>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-2">
-                {!recommendations ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="h-14 bg-white/5 animate-pulse rounded-lg"></div>
-                    ))}
-                  </div>
-                ) : recommendations.length === 0 ? (
-                  <div className="text-center text-white/40 py-8">
-                    No recommendations found
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {recommendations.map((song: any) => (
-                      <div
-                        key={song.id}
-                        className="flex items-center p-2 rounded-sm hover:bg-white/10 transition-all group"
-                      >
-                        <img
-                          src={song.image}
-                          alt={song.name}
-                          className="w-12 h-12 rounded-sm object-cover mr-2"
-                        />
-                        <div className="flex-1 min-w-0 mr-2">
-                          <DoubleMarquee
-                            text1={song.name}
-                            text2={Array.isArray(song.artists) ? song.artists.join(", ") : song.artists}
-                            className1="font-semibold text-sm text-white text-left"
-                            className2="text-gray-400 text-xs text-left"
-                          />
-                        </div>
-                        <div className="text-gray-400 text-xs mr-2">
-                          {formatTime(song.duration / 1000)}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => addToQueueMutation.mutate(song)}
-                          disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id}
-                          className="h-8 w-8 md:h-10 md:w-10 opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-purple-600 transition-opacity bg-purple-600 rounded-[50%]"
-                        >
-                          {addToQueueMutation.isPending && addToQueueMutation.variables?.id === song.id ? (
-                            <Loader2 style={{ width: 20, height: 20 }} className="w-6 h-6 text-white animate-spin" />
-                          ) : (
-                            <Plus className="w-6 h-6 text-white" strokeWidth={4} />
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </GlassPanel>
-
-
-
-
-
+        <Player
+          className={activeTab === "player" ? "flex" : "hidden lg:flex"}
+          room={room}
+          activeSong={activeSong}
+          userId={userId}
+          isHost={isHost}
+          youtubeVideoId={youtubeVideoId}
+          playerRef={playerRef}
+          isPlaying={isPlaying}
+          setIsPlaying={setIsPlaying}
+          handleNext={handleNext}
+          handlePrevious={handlePrevious}
+          handlePlayPause={handlePlayPause}
+          handleSeek={handleSeek}
+          currentTime={currentTime}
+          duration={duration}
+          loopStart={loopStart}
+          loopEnd={loopEnd}
+          isLooping={isLooping}
+          isLoopingRange={isLoopingRange}
+          onToggleLoop={(newState) => {
+            setIsLooping(newState);
+            const currentQueueItemId = activeSong?._id || activeSong?.id;
+            if (currentQueueItemId) {
+              localStorage.setItem(
+                "groovia_loop_state",
+                JSON.stringify({
+                  queueItemId: currentQueueItemId,
+                  isLooping: newState,
+                }),
+              );
+            }
+            if (socketRef.current) {
+              socketRef.current.emit("toggleLoop", {
+                roomId,
+                isLooping: newState,
+              });
+            }
+          }}
+          onUpdateLoopRange={(start, end, isActive) => {
+            setLoopStart(start);
+            setLoopEnd(end);
+            setIsLoopingRange(isActive);
+            if (socketRef.current) {
+              socketRef.current.emit("updateLoopRange", {
+                roomId,
+                loopStart: start,
+                loopEnd: end,
+                isLoopingRange: isActive,
+              });
+            }
+          }}
+          recommendations={recommendations}
+          addToQueueMutation={addToQueueMutation}
+          formatTime={formatTime}
+        />
 
         {/* Queue List */}
-        <GlassPanel className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex items-center flex-col ${activeTab === 'queue' ? 'flex' : 'hidden lg:flex'}`}>
-          <div className="flex items-center justify-center w-full mb-4">
-            <div className="relative flex w-full">
-              {/* Sliding underline */}
-              <motion.span
-                className="absolute bottom-0 left-0 h-[2px] w-1/2 bg-white"
-                animate={{ x: activeQueueTab === "up-next" ? "0%" : "100%" }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              />
-
-              <button
-                onClick={() => {
-                  setSlideDirection(-1);
-                  setActiveQueueTab("up-next");
-                }}
-                className={`w-1/2 py-2 text-md font-medium transition-colors ${activeQueueTab === "up-next"
-                  ? "text-white"
-                  : "text-gray-400 hover:text-white"
-                  }`}
-              >
-                Up Next
-              </button>
-
-              <button
-                onClick={() => {
-                  setSlideDirection(1);
-                  setActiveQueueTab("history");
-                }}
-                className={`w-1/2 py-2 text-md font-medium transition-colors ${activeQueueTab === "history"
-                  ? "text-white"
-                  : "text-gray-400 hover:text-white"
-                  }`}
-              >
-                Previously Played
-              </button>
-            </div>
-          </div>
-
-
-          <div className="relative flex-1 overflow-y-auto custom-scrollbar w-full overflow-x-hidden">
-            <AnimatePresence mode="popLayout" initial={false} custom={slideDirection}>
-              <motion.div
-                key={activeQueueTab}
-                custom={slideDirection}
-                variants={{
-                  enter: (direction: number) => ({
-                    x: direction > 0 ? 300 : -300,
-                    opacity: 0
-                  }),
-                  center: {
-                    zIndex: 1,
-                    x: 0,
-                    opacity: 1
-                  },
-                  exit: (direction: number) => ({
-                    zIndex: 0,
-                    x: direction < 0 ? 300 : -300,
-                    opacity: 0
-                  })
-                }}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  x: { type: "spring", stiffness: 300, damping: 30 },
-                  opacity: { duration: 0.2 }
-                }}
-                className="w-full flex flex-col space-y-2 lg:space-y-2 h-full"
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={1}
-                onDragEnd={(e, { offset, velocity }) => {
-                  const swipe = offset.x; // > 0 right, < 0 left
-
-                  if (swipe < -50 && activeQueueTab === "up-next") {
-                    setSlideDirection(1);
-                    setActiveQueueTab("history");
-                  } else if (swipe > 50 && activeQueueTab === "history") {
-                    setSlideDirection(-1);
-                    setActiveQueueTab("up-next");
-                  }
-                }}
-              >
-                {activeQueueTab === 'up-next' ? (
-                  // Up Next List
-                  room?.queueItems
-                    // .filter removed to include all items
-                    .sort((a: any, b: any) => {
-                      // Keep currently playing song at the top
-                      if (a.isPlaying) return -1;
-                      if (b.isPlaying) return 1;
-
-                      const scoreA = (a.upvotes || 0) - (a.downvotes || 0);
-                      const scoreB = (b.upvotes || 0) - (b.downvotes || 0);
-
-                      if (scoreA !== scoreB) {
-                        return scoreB - scoreA; // Descending order of votes
-                      }
-
-                      // Tie-breaker: First Voted/Added First Served (Earlier is better)
-                      const getTime = (item: any) => {
-                        if (item.lastVotedAt) return new Date(item.lastVotedAt).getTime();
-                        if (item.addedAt) return new Date(item.addedAt).getTime();
-                        // Fallback to _id creation time (first 8 hex chars = seconds timestamp)
-                        const id = (item._id || item.id || "").toString();
-                        try {
-                          return parseInt(id.substring(0, 8), 16) * 1000;
-                        } catch (e) {
-                          return Date.now();
-                        }
-                      };
-
-                      return getTime(a) - getTime(b);
-                    })
-                    .map((item: any, index: any) => {
-                      const userVote = item.voters?.find(
-                        (v: any) => v.userId === userId
-                      )?.voteType;
-
-                      return (
-                        <motion.div
-                          // layout
-                          // initial={{ opacity: 0, y: 20 }}
-                          key={item._id || item.id}
-                          className={`flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 ${item.isPlaying ? 'bg-green-500/15 hover:bg-green-500/15 border border-green-500' : ''}`}
-                        >
-                          <div className="flex flex-col items-center justify-center mr-1 w-4">
-                            <div className="text-gray-200 text-xs text-center w-full">
-                              {index + 1}
-                            </div>
-                            {item.isPlaying && isLooping && (
-                              <Repeat className="w-3 h-3 text-green-300 mb-0.5" />
-                            )}
-                          </div>
-                          <img
-                            src={
-                              item.song?.cover ||
-                              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
-                            }
-                            alt={`${item.song?.title || "Song"} artwork`}
-                            className="w-12 h-12 rounded-sm object-cover mr-2"
-                          />
-                          <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
-                            <DoubleMarquee
-                              text1={item.song?.title || "Unknown Title"}
-                              text2={item.song?.artist || "Unknown Artist"}
-                              className1="font-medium text-xs md:text-sm text-white"
-                              className2="font-medium text-xs md:text-xs text-gray-400"
-                            />
-                            <p className="text-white/60 text-[11px] text-xs flex items-center">
-                              <div>
-                                By <span>{item?.username || "Unknown"}</span>
-                              </div>
-                            </p>
-                          </div>
-                          <div className="flex items-center ml-1 h-full">
-                            <div className="flex flex-col items-center justify-center mr-1 gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={false}
-                                onClick={() =>
-                                  voteMutation.mutate({
-                                    queueItemId: item._id || item.id,
-                                    voteType: "up",
-                                  })
-                                }
-                                className={`transition-colors h-[50%] h-6 p-2 flex items-center ${userVote === "up"
-                                  ? "text-green-400 bg-green-400/10 hover:bg-green-400/10 hover:text-green-400 disabled:opacity-100"
-                                  : "text-gray-400 hover:text-green-400 hover:bg-white/10"
-                                  }`}
-                              >
-                                <ChevronUp className="w-3 h-3 md:w-4 md:h-4" />
-                                <span className="ml-[2px] text-[10px] md:text-xs">{item.upvotes ?? 0}</span>
-                              </Button>
-                              {/* Downvote */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={false}
-                                onClick={() =>
-                                  voteMutation.mutate({
-                                    queueItemId: item._id || item.id,
-                                    voteType: "down",
-                                  })
-                                }
-                                className={`transition-colors h-[50%] h-6 p-2 flex items-center ${userVote === "down"
-                                  ? "text-red-400 bg-red-400/10 hover:bg-red-400/10 hover:text-red-400 disabled:opacity-100"
-                                  : "text-gray-400 hover:text-red-400 hover:bg-white/10"
-                                  }`}
-                              >
-                                <ChevronDown className="w-3 h-3 md:w-4 md:h-4" />
-                                <span className="ml-[2px] text-[10px] md:text-xs">{item.downvotes ?? 0}</span>
-                              </Button>
-                            </div>
-
-                            {item.addedBy === userId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteSongMutation.mutate(item._id)}
-                                className="h-full w-8 text-gray-400 hover:text-red-400 hover:bg-red-400/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </motion.div>
-                      );
-                    })
-                ) : (
-                  // History List
-                  (room?.history && room.history.length > 0) ? (
-                    [...room.history].reverse().map((item: any, index: any) => (
-                      <div
-                        key={item._id || index}
-                        className="flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20"
-                      >
-                        <div className="text-gray-200 text-xs w-2 text-center mr-2">
-                          {index + 1}
-                        </div>
-                        <img
-                          src={
-                            item.song?.cover ||
-                            "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
-                          }
-                          alt={`${item.song?.title || "Song"} artwork`}
-                          className="w-12 h-12 rounded-sm object-cover mr-3 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
-                        />
-                        <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
-                          <DoubleMarquee
-                            text1={item.song?.title || "Unknown Title"}
-                            text2={item.song?.artist || "Unknown Artist"}
-                            className1="font-medium text-xs md:text-sm text-white/70 group-hover:text-white"
-                            className2="font-medium text-xs md:text-xs text-gray-400"
-                          />
-                          <p className="text-white/40 text-[10px] mt-0.5">
-                            Played at {new Date(item.playedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="ml-1 h-8 w-8 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 md:opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Play Again"
-                          disabled={addToQueueMutation.isPending && addToQueueMutation.variables?.id === item.song.spotifyId}
-                          onClick={() => addToQueueMutation.mutate({
-                            id: item.song.spotifyId,
-                            name: item.song.title,
-                            artists: [item.song.artist], // API expects array
-                            image: item.song.cover,
-                            duration: item.song.duration,
-                            preview_url: item.song.url
-                          })}
-                        >
-                          {addToQueueMutation.isPending && addToQueueMutation.variables?.id === item.song.spotifyId ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RotateCcw className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-40 text-center text-gray-400 bg-white/5 rounded-lg m-2">
-                      <History className="w-8 h-8 mb-2 opacity-50" />
-                      <p className="text-sm">No songs played yet</p>
-                    </div>
-                  )
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </GlassPanel>
-
+        <QueueList
+          className={activeTab === "queue" ? "flex" : "hidden lg:flex"}
+          room={room}
+          userId={userId}
+          isLooping={isLooping}
+          voteMutation={voteMutation}
+          deleteSongMutation={deleteSongMutation}
+          addToQueueMutation={addToQueueMutation}
+        />
 
         {/* Mobile Bottom Navigation */}
-        < div className="lg:hidden shrink-0 h-14 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl mt-1 flex items-center justify-around shadow-2xl safe-pb w-full" >
-          <button
-            onClick={() => setActiveTab("search")}
-            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "search" ? "text-purple-400 scale-110" : "text-gray-400 hover:text-white"
-              }`}
-          >
-            <Search className="w-6 h-6 mb-1" strokeWidth={activeTab === "search" ? 2.5 : 2} />
-            <span className="text-[10px] font-medium tracking-wide">Add Songs</span>
-            {activeTab === "search" && (
-              <span className="absolute -bottom-1 w-1 h-1 bg-purple-400 rounded-full" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("player")}
-            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "player" ? "text-green-400 scale-100" : "text-gray-400 hover:text-white"
-              }`}
-          >
-            <div className={`p-3 rounded-full transition-all ${activeTab === "player" ? "bg-green-300/20" : ""}`}>
-              <Play className={`w-6 h-6 ${activeTab === "player" ? "fill-current" : ""}`} strokeWidth={activeTab === "player" ? 2.5 : 2} />
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("queue")}
-            className={`relative flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${activeTab === "queue" ? "text-blue-400 scale-110" : "text-gray-400 hover:text-white"
-              }`}
-          >
-            <Music className="w-6 h-6 mb-1" strokeWidth={activeTab === "queue" ? 2.5 : 2} />
-            <span className="text-[10px] font-medium tracking-wide">Queue</span>
-            {activeTab === "queue" && (
-              <span className="absolute -bottom-1 w-1 h-1 bg-blue-400 rounded-full" />
-            )}
-          </button>
-        </div >
-      </div >
-    </div >
+        <MobileNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
+    </div>
   );
 }

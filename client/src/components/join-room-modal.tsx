@@ -17,19 +17,26 @@ interface JoinRoomModalProps {
   onClose: () => void;
 }
 
-export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
-  const [roomCode, setRoomCode] = useState("");
+export default function JoinRoomModal({
+  isOpen,
+  onClose,
+  initialCode,
+  onCancel,
+}: JoinRoomModalProps & { initialCode?: string; onCancel?: () => void }) {
+  const [roomCode, setRoomCode] = useState(initialCode || "");
   const [username, setUsername] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const isLinkJoin = !!initialCode;
+
   const joinRoomMutation = useMutation({
-    mutationFn: ({ username}: { username: string }) => 
+    mutationFn: ({ username }: { username: string }) =>
       apiRequest("POST", `/api/rooms/code/${roomCode}`, { username }),
     onSuccess: async (response) => {
       const res = await response.json();
       const userId = res.userId;
-      
+
       sessionStorage.setItem("userId", userId);
 
       toast({
@@ -84,12 +91,18 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="glass-panel border-white/20 bg-gray text-white max-w-[364px] sm:max-w-md"
+        className={`glass-panel border-white/20 bg-gray text-white max-w-[364px] sm:max-w-md ${
+          isLinkJoin ? "[&>button]:hidden" : ""
+        }`}
         data-testid="join-room-modal"
+        onPointerDownOutside={
+          isLinkJoin ? (e) => e.preventDefault() : undefined
+        }
+        onEscapeKeyDown={isLinkJoin ? (e) => e.preventDefault() : undefined}
       >
         <DialogHeader>
           <DialogTitle className="text-3xl font-bold mb-0 text-center">
-            Join a Room
+            {isLinkJoin ? "Join Room" : "Join a Room"}
           </DialogTitle>
         </DialogHeader>
 
@@ -105,22 +118,24 @@ export default function JoinRoomModal({ isOpen, onClose }: JoinRoomModalProps) {
               data-testid="input-user-name"
             />
           </div>
-          <div>
-            <Input
-              id="roomCode"
-              type="text"
-              value={roomCode}
-              onChange={handleCodeChange}
-              placeholder="Enter 6-digit Room Code"
-              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide mt-2 p-6"
-              data-testid="input-room-code"
-            />
-          </div>
+          {!isLinkJoin && (
+            <div>
+              <Input
+                id="roomCode"
+                type="text"
+                value={roomCode}
+                onChange={handleCodeChange}
+                placeholder="Enter 6-digit Room Code"
+                className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide mt-2 p-6"
+                data-testid="input-room-code"
+              />
+            </div>
+          )}
 
           <div className="flex space-x-2">
             <Button
               type="button"
-              onClick={onClose}
+              onClick={onCancel || onClose}
               variant="ghost"
               className="flex-1 glass-panel hover:bg-white/10 hover:text-white p-6 md:text-[16px]"
               data-testid="button-cancel"
