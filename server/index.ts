@@ -328,6 +328,105 @@ io.on("connection", (socket) => {
     const { roomId, loopStart, loopEnd, isLoopingRange } = data;
     socket.to(roomId).emit("loopRangeUpdated", { loopStart, loopEnd, isLoopingRange });
   });
+
+    socket.on("makeHost", async (data: { roomId: string; newHostId: string }) => {
+    try {
+      const { roomId, newHostId } = data;
+      const room = await Room.findById(roomId);
+      if (!room || !room.createdBy) return;
+
+      // Verify requester is current host
+      const requester = connectedUsers.get(socket.id);
+      if (!requester || room.createdBy.toString() !== requester.userId) {
+        return; // Unauthorized
+      }
+
+      room.createdBy = newHostId;
+      await room.save();
+
+      const newHost = await User.findById(newHostId);
+      
+      const updatedRoom = await Room.findById(roomId)
+        .populate("queueItems.song")
+        .populate("members.userId", "username")
+        .populate("createdBy", "username")
+        .populate("history.song")
+        .populate("history.addedBy", "username");
+
+      if (updatedRoom) {
+        const currentListenerCount = rooms.get(roomId)?.size || 0;
+        io.to(roomId).emit("roomUpdated", {
+          ...updatedRoom.toObject(),
+          listenerCount: currentListenerCount,
+        });
+        
+        io.to(roomId).emit("hostChanged", {
+          newHostId,
+          newHostName: newHost?.username
+        });
+
+        io.to(roomId).emit("notification", {
+          message: `The new room host is ${newHost?.username || "Unknown"}`,
+          type: "info"
+        });
+      }
+    } catch (error) {
+      console.error("Error making host:", error);
+    }
+  });
+
+  socket.on("kickUser", async (data: { roomId: string; userIdToKick: string }) => {
+    try {
+      const { roomId, userIdToKick } = data;
+      const room = await Room.findById(roomId);
+      if (!room || !room.createdBy) return;
+
+      // Verify requester is current host
+      const requester = connectedUsers.get(socket.id);
+      if (!requester || room.createdBy.toString() !== requester.userId) {
+        return; // Unauthorized
+      }
+
+      // Remove from members
+      const memberIndex = room.members.findIndex(m => m.userId.toString() === userIdToKick);
+      if (memberIndex === -1) return;
+
+      room.members.splice(memberIndex, 1);
+      await room.save();
+
+      const kickedUser = await User.findById(userIdToKick);
+
+      // Notify the kicked user(s)
+      for (const [sId, user] of Array.from(connectedUsers.entries())) {
+        if (user.userId === userIdToKick && user.rooms.has(roomId)) {
+           io.to(sId).emit("kicked", { roomId });
+        }
+      }
+
+      const updatedRoom = await Room.findById(roomId)
+        .populate("queueItems.song")
+        .populate("members.userId", "username")
+        .populate("createdBy", "username")
+        .populate("history.song")
+        .populate("history.addedBy", "username");
+
+      if (updatedRoom) {
+        const currentListenerCount = rooms.get(roomId)?.size || 0;
+        io.to(roomId).emit("roomUpdated", {
+          ...updatedRoom.toObject(),
+          listenerCount: currentListenerCount,
+        });
+
+        io.to(roomId).emit("notification", {
+          message: `${kickedUser?.username || "User"} has been kicked out of the room`,
+          type: "warning"
+        });
+      }
+
+    } catch (error) {
+      console.error("Error kicking user:", error);
+    }
+  });
 });
 
 // Add WebSocket-related API endpoints

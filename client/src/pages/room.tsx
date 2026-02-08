@@ -1,27 +1,17 @@
 import { useParams, useLocation } from "wouter";
-import DoubleMarquee from "@/components/double-marquee";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "react-router-dom";
-import { Users, LogOut, Copy } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
+import { LogOut, Copy } from "lucide-react";
+
 import LeaveRoomModal from "@/components/leave-room-modal";
 import SongSearch from "@/components/room components/song-search";
 import Player from "@/components/room components/room-player";
 import QueueList from "@/components/room components/queue-list";
 import MobileNavigation from "@/components/room components/mobile-navigation";
+import ListenerCountSheet from "@/components/room components/listener-count-sheet";
 import JoinRoomModal from "@/components/join-room-modal";
 
 import GlassPanel from "@/components/glass-panel";
@@ -41,11 +31,13 @@ export default function Room() {
   const [loopEnd, setLoopEnd] = useState<number | null>(null);
 
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
-  const [listenerCount, setListenerCount] = useState(0);
+  // Listener Count & Dropdown state moved to ListenerCountSheet component
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null); // State to pass to children
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playerRef = useRef<any>(null);
 
@@ -195,6 +187,7 @@ export default function Room() {
       query: { userId }, // helps server identify this user/socket
     });
     const socket = socketRef.current;
+    setSocket(socket);
 
     // Join the room via WebSocket
     socket.emit("joinRoom", { roomId, userId });
@@ -204,14 +197,6 @@ export default function Room() {
       console.log("Successfully joined room via WebSocket:", data);
 
       if (data.room) {
-        const count =
-          data.room.listenerCount ||
-          data.listenerCount ||
-          data.room.members?.length ||
-          0;
-
-        setListenerCount(count);
-
         // Merge so we don't lose fields like code/roomId
         queryClient.setQueryData(["room", roomId], (oldRoom: any) => ({
           ...oldRoom,
@@ -229,15 +214,6 @@ export default function Room() {
           title: "User joined",
           description: `${data.user?.username || "Someone"} joined the room`,
         });
-
-        // If server gave full room, trust it; otherwise increment
-        if (data.room) {
-          const count =
-            data.room.listenerCount || data.room.members?.length || 0;
-          setListenerCount(count);
-        } else {
-          setListenerCount((prev) => prev + 1);
-        }
       }
     });
 
@@ -248,22 +224,11 @@ export default function Room() {
         title: "User left",
         description: `${data.user?.username || "Someone"} left the room`,
       });
-
-      if (data.room) {
-        const count = data.room.listenerCount || data.room.members?.length || 0;
-        setListenerCount(count);
-      } else {
-        setListenerCount((prev) => Math.max(0, prev - 1));
-      }
     });
 
     // ✅ Full room updates → always sync absolute
     socket.on("roomUpdated", (updatedRoom) => {
       console.log("Room updated:", updatedRoom);
-      const newCount =
-        updatedRoom.listenerCount || updatedRoom.members?.length || 0;
-
-      setListenerCount(newCount);
 
       queryClient.setQueryData(["room", roomId], (oldRoom: any) => ({
         ...oldRoom,
@@ -377,9 +342,29 @@ export default function Room() {
     // ✅ Sync Loop Range Listener
     socket.on("loopRangeUpdated", (data) => {
       console.log("🔁 Received range loop update:", data);
+      console.log("🔁 Received range loop update:", data);
       setIsLoopingRange(data.isLoopingRange);
       setLoopStart(data.loopStart);
       setLoopEnd(data.loopEnd);
+    });
+
+    socket.on("kicked", (data) => {
+      if (data.roomId === roomId) {
+        toast({
+          title: "Kicked",
+          description: "You have been kicked out of the room",
+          variant: "destructive",
+        });
+        setLocation("/");
+      }
+    });
+
+    socket.on("notification", (data) => {
+      toast({
+        title: data.type === "warning" ? "Notice" : "Update",
+        description: data.message,
+        variant: data.type === "warning" ? "destructive" : "default",
+      });
     });
 
     // Cleanup on unmount
@@ -657,6 +642,23 @@ export default function Room() {
     }
   }, [isPlaying, activeSong]);
 
+  // Sync playback when becoming host (or losing host status)
+  useEffect(() => {
+    if (isHost && audioRef.current && activeSong) {
+      if (Math.abs(audioRef.current.currentTime - currentTime) > 0.5) {
+        audioRef.current.currentTime = currentTime;
+      }
+      setIsPlaying(true);
+      audioRef.current
+        .play()
+        .catch((e) => console.log("Host transition playback failed:", e));
+    } else if (!isHost) {
+      // If we are NO LONGER host (or never were), reset local playing state
+      // (Visual only, since audio element unmounts anyway, but good for Player UI)
+      setIsPlaying(false);
+    }
+  }, [isHost]);
+
   // Sync YouTube progress
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -668,7 +670,12 @@ export default function Room() {
       ) {
         const time = playerRef.current.getCurrentTime();
         const dur = playerRef.current.getDuration();
-        if (typeof time === "number") setCurrentTime(time);
+
+        // Only update local time from player if we are hosting or playing locally
+        // Otherwise, rely on socket updates for time sync
+        if (typeof time === "number" && (isHost || isPlaying)) {
+          setCurrentTime(time);
+        }
         if (dur) setDuration(dur);
 
         // Host emits updates
@@ -735,7 +742,9 @@ export default function Room() {
               />
             </div>
           </div>
-          <p className="text-white whitespace-nowrap -ml-4 my-auto">Loading room...</p>
+          <p className="text-white whitespace-nowrap -ml-4 my-auto">
+            Loading room...
+          </p>
         </div>
       </div>
     );
@@ -808,106 +817,12 @@ export default function Room() {
                 </Button>
               </div>
 
-              <Sheet>
-                <SheetTrigger asChild>
-                  <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/10 rounded-full bg-white/10">
-                    <Users className="w-3.5 h-3.5 mr-2 text-purple-300" />
-                    <span className="flex items-center py-1 decoration-white/30 underline-offset-4">
-                      {listenerCount}{" "}
-                      <span className="md:inline ml-1">listeners</span>
-                    </span>
-                  </button>
-                </SheetTrigger>
-                <SheetContent className="w-3/4 sm:max-w-md border-l border-white/10 bg-black/20 backdrop-blur-xl text-white p-0 shadow-2xl">
-                  <SheetHeader className="p-4 border-b border-white/10">
-                    <SheetTitle className="text-2xl font-bold text-white flex items-center gap-2 mt-4 -mb-1">
-                      Room Members
-                    </SheetTitle>
-                    <SheetDescription className="text-gray-400 -mt-2">
-                      See who's vibing in the room right now.
-                    </SheetDescription>
-                  </SheetHeader>
-
-                  <ScrollArea className="h-[calc(100vh-120px)] p-2">
-                    <div className="space-y-4">
-                      {/* Room Members List */}
-                      <div className="space-y-2">
-                        <div className="flex flex-row items-center">
-                          {/* <Users className="w-6 h-6 text-purple-400" /> */}
-                          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2 ml-2">
-                            Listeners
-                          </h4>
-                          <Badge
-                            variant="outline"
-                            className=" ml-2 border-purple-300/50 px-2 text-purple-300"
-                          >
-                            {room?.members?.length || 0}
-                          </Badge>
-                        </div>
-                        {[...(room?.members || [])]
-                          .sort((a: any, b: any) => {
-                            const aId = (a.userId?._id || a.userId)?.toString();
-                            const bId = (b.userId?._id || b.userId)?.toString();
-                            const cId = (
-                              room.createdBy?._id || room.createdBy
-                            )?.toString();
-                            if (aId === cId) return -1;
-                            if (bId === cId) return 1;
-                            return 0;
-                          })
-                          .map((member: any) => {
-                            const user = member.userId;
-                            const isMe = (user._id || user) === userId;
-                            const cId = (
-                              room.createdBy?._id || room.createdBy
-                            )?.toString();
-                            const mId = (user._id || user)?.toString();
-                            const isHost = mId === cId;
-
-                            return (
-                              <div
-                                key={user._id || user}
-                                className="flex items-center rounded-sm gap-3 p-1 hover:bg-white/5 transition-colors group"
-                              >
-                                <Avatar
-                                  className={`h-9 w-9 border ${isHost ? "border-purple-400 ring-2 ring-purple-400/30 shadow-[0_0_8px_rgba(192,132,252,0.4)]" : "border-white/10"}`}
-                                >
-                                  <AvatarImage
-                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || user}`}
-                                  />
-                                  <AvatarFallback className="bg-gray-800 text-gray-300">
-                                    {(user.username?.[0] || "U").toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors flex items-center gap-1">
-                                    {/* {isMe} */}
-                                    {user.username || "Unknown"}
-                                    {isHost && (
-                                      <>
-                                        <span className="text-[12px] text-purple-300 bg-purple-300/10 px-2 rounded-full">
-                                          Host
-                                        </span>
-                                      </>
-                                    )}
-                                    {isMe && (
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-[12px] pt-1 text-white/80 bg-transparent"
-                                      >
-                                        (You)
-                                      </Badge>
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </SheetContent>
-              </Sheet>
+              <ListenerCountSheet
+                room={room}
+                userId={userId}
+                socket={socket}
+                roomId={roomId || ""}
+              />
             </div>
           </div>
 
