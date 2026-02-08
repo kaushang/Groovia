@@ -6,9 +6,6 @@ import {
   type Server,
 } from "http";
 import { User, Room, Song } from "@shared/schema";
-import { v4 as uuidv4 } from "uuid";
-import mongoose from "mongoose";
-import { log } from "./vite";
 import axios from "axios";
 import qs from "qs";
 import { Server as SocketIOServer } from "socket.io";

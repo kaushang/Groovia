@@ -724,10 +724,18 @@ export default function Room() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center pt-20">
-        <div className="glass-panel p-8 rounded-xl">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
-          <p className="text-white text-center">Loading room...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="glass-panel rounded-xl w-fit flex flex-row gap-8 p-12">
+          <div className="w-full aspect-video flex items-center justify-center">
+            <div className="flex flex-row items-center">
+              <img
+                src="/groovia_icon.png"
+                alt=""
+                className="h-10 w-10 animate-spin-reverse-slow"
+              />
+            </div>
+          </div>
+          <p className="text-white whitespace-nowrap -ml-4 my-auto">Loading room...</p>
         </div>
       </div>
     );
