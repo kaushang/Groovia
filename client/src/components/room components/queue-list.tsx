@@ -206,7 +206,11 @@ export default function QueueList({
                           <Button
                             variant="ghost"
                             size="sm"
-                            disabled={false}
+                            disabled={
+                              voteMutation.isPending &&
+                              voteMutation.variables?.queueItemId ===
+                                (item._id || item.id)
+                            }
                             onClick={() =>
                               voteMutation.mutate({
                                 queueItemId: item._id || item.id,
@@ -228,7 +232,11 @@ export default function QueueList({
                           <Button
                             variant="ghost"
                             size="sm"
-                            disabled={false}
+                            disabled={
+                              voteMutation.isPending &&
+                              voteMutation.variables?.queueItemId ===
+                                (item._id || item.id)
+                            }
                             onClick={() =>
                               voteMutation.mutate({
                                 queueItemId: item._id || item.id,
