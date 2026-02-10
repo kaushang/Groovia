@@ -445,7 +445,7 @@ export default function Room() {
         : activeSong.song.artist;
       // Pass the song ID so we can save the result
       searchYouTube(
-        `${activeSong.song.title} ${artistName}`,
+        `${activeSong.song.title} ${artistName} Full Song`,
         activeSong.song._id || activeSong.song.id,
       );
     } else {
@@ -589,6 +589,47 @@ export default function Room() {
   const handleNext = () => {
     if (!isHost) return;
     if (activeSong && socketRef.current && roomId) {
+      // Optimistic Update
+      const oldRoomData = queryClient.getQueryData<any>(["room", roomId]);
+
+      if (oldRoomData?.queueItems) {
+        const queueItems = [...oldRoomData.queueItems];
+        const currentIndex = queueItems.findIndex(
+          (item: any) =>
+            (item._id && item._id === activeSong._id) ||
+            (item.id && item.id === activeSong.id),
+        );
+
+        if (currentIndex !== -1 && currentIndex < queueItems.length - 1) {
+          const nextSong = queueItems[currentIndex + 1];
+
+          const newQueueItems = queueItems.map((item, index) => {
+            if (index === currentIndex) return { ...item, isPlaying: false };
+            if (index === currentIndex + 1) return { ...item, isPlaying: true };
+            return item;
+          });
+
+          queryClient.setQueryData(["room", roomId], {
+            ...oldRoomData,
+            queueItems: newQueueItems,
+          });
+
+          // Reset/Update player state
+          setCurrentTime(0);
+          if (nextSong?.song?.duration) {
+            setDuration(nextSong.song.duration / 1000);
+          }
+          // Optimistically set YouTube ID if available to avoid flicker
+          if (nextSong.song?.youtubeId) {
+            setYoutubeVideoId(nextSong.song.youtubeId);
+          } else {
+            setYoutubeVideoId(null);
+          }
+
+          setIsPlaying(true);
+        }
+      }
+
       socketRef.current.emit("songEnded", {
         roomId,
         songId: activeSong.song._id || activeSong.song.id,
