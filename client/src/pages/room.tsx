@@ -603,11 +603,19 @@ export default function Room() {
         if (currentIndex !== -1 && currentIndex < queueItems.length - 1) {
           const nextSong = queueItems[currentIndex + 1];
 
-          const newQueueItems = queueItems.map((item, index) => {
-            if (index === currentIndex) return { ...item, isPlaying: false };
-            if (index === currentIndex + 1) return { ...item, isPlaying: true };
-            return item;
-          });
+          // FILTER OUT the current song so it disappears from the queue
+          const newQueueItems = queueItems
+            .filter((_, index) => index !== currentIndex)
+            .map((item) => {
+              // Mark the NEXT song as playing
+              if (
+                (item._id && item._id === nextSong._id) ||
+                (item.id && item.id === nextSong.id)
+              ) {
+                return { ...item, isPlaying: true };
+              }
+              return item;
+            });
 
           queryClient.setQueryData(["room", roomId], {
             ...oldRoomData,
