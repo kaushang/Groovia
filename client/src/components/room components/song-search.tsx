@@ -88,7 +88,7 @@ export default function SongSearch({
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex items-center gap-2 py-1">
               <img
-                src="/groovia_icon.png"
+                src="/groovia_icon.avif"
                 alt=""
                 className="w-10 h-10 animate-spin-reverse-slow"
               />
@@ -155,7 +155,7 @@ export default function SongSearch({
                 {isFetchingNextPage ? (
                   <div className="flex items-center justify-center gap-2">
                     <img
-                      src="/groovia_icon.png"
+                      src="/groovia_icon.avif"
                       alt=""
                       className="w-4 h-4 animate-spin-reverse-slow"
                     />

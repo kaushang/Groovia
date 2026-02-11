@@ -142,7 +142,7 @@ export default function Player({
               <div className="w-full aspect-video flex items-center justify-center bg-white/5 rounded-xl border border-white/5">
                 <div className="flex flex-row items-center ">
                   <img
-                    src="/groovia_icon.png"
+                    src="/groovia_icon.avif"
                     alt=""
                     className="h-10 w-10 animate-spin-reverse-slow"
                   />

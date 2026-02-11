@@ -49,14 +49,14 @@ export default function Landing() {
             </h2>
             <div className="relative w-full max-w-[300px] sm:max-w-[400px] md:max-w-[500px] mx-auto">
               <img
-                src="/groovia_logo.png"
+                src="/groovia_logo.avif"
                 alt="Groovia"
                 className="w-full h-auto select-none pointer-events-none"
               />
               {/* First icon - right to R */}
               <div className="absolute w-[16%] top-[50%] -translate-y-1/2 left-[31%] rotate-[40deg]">
                 <img
-                  src="/groovia_icon.png"
+                  src="/groovia_icon.avif"
                   alt=""
                   className="w-full animate-spin-reverse-slow"
                 />
@@ -64,7 +64,7 @@ export default function Landing() {
               {/* Second icon - left to V */}
               <div className="absolute w-[16%] top-[50%] -translate-y-1/2 left-[48%] rotate-[40deg]">
                 <img
-                  src="/groovia_icon.png"
+                  src="/groovia_icon.avif"
                   alt=""
                   className="w-full animate-spin-slow"
                 />
