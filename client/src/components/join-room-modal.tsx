@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 
 interface JoinRoomModalProps {
   isOpen: boolean;
@@ -26,7 +26,7 @@ export default function JoinRoomModal({
   const [roomCode, setRoomCode] = useState(initialCode || "");
   const [username, setUsername] = useState("");
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const isLinkJoin = !!initialCode;
 
@@ -44,7 +44,7 @@ export default function JoinRoomModal({
         description: `Welcome to ${res.room.name}`,
       });
       onClose();
-      navigate(`/room/${res.room._id}?user=${userId}`);
+      setLocation(`/room/${res.room._id}?user=${userId}`);
     },
     onError: () => {
       toast({

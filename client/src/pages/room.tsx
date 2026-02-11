@@ -1,11 +1,9 @@
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { useSearchParams } from "react-router-dom";
 import { LogOut, Copy } from "lucide-react";
-
 import LeaveRoomModal from "@/components/leave-room-modal";
 import SongSearch from "@/components/room components/song-search";
 import Player from "@/components/room components/room-player";
@@ -13,7 +11,6 @@ import QueueList from "@/components/room components/queue-list";
 import MobileNavigation from "@/components/room components/mobile-navigation";
 import ListenerCountSheet from "@/components/room components/listener-count-sheet";
 import JoinRoomModal from "@/components/join-room-modal";
-
 import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +32,8 @@ export default function Room() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const socketRef = useRef<Socket | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null); // State to pass to children
   const audioRef = useRef<HTMLAudioElement | null>(null);

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ export default function CreateRoomModal({
   const [roomName, setRoomName] = useState("");
   const [username, setUsername] = useState("");
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const createRoomMutation = useMutation({
     mutationFn: ({ name, username }: { name: string; username: string }) =>
@@ -32,7 +32,7 @@ export default function CreateRoomModal({
     onSuccess: async (response) => {
       const res = await response.json();
       const userId = res.userId;
-      
+
       // Save to session storage so room.tsx knows we are authenticated
       sessionStorage.setItem("userId", userId);
 
@@ -41,7 +41,7 @@ export default function CreateRoomModal({
         description: `${res.room.name} has been created successfully`,
       });
       onClose();
-      navigate(`/room/${res.room._id}?user=${userId}`);
+      setLocation(`/room/${res.room._id}?user=${userId}`);
     },
     onError: () => {
       toast({
