@@ -35,6 +35,8 @@ const roomSchema = new Schema({
       upvotes: { type: Number, default: 0 },
       downvotes: { type: Number, default: 0 },
       url: { type: String },
+      youtubeId: { type: String },
+      duration: { type: Number },
       voters: [
         {
           userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -64,7 +66,7 @@ const songSchema = new Schema({
   duration: { type: Number },
   cover: { type: String },
   url: { type: String },
-  spotifyId: { type: String, unique: true, sparse: true },
+  spotifyId: { type: String, sparse: true },
   youtubeId: { type: String },
 });
 export const Song = model("Song", songSchema);

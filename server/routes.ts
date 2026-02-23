@@ -111,6 +111,62 @@ export async function registerRoutes(
     }
   });
 
+  // Helper to parse ISO 8601 duration from YouTube
+  function parseYouTubeDuration(duration: string): number {
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return 0;
+    const hours = parseInt(match[1] || '0');
+    const minutes = parseInt(match[2] || '0');
+    const seconds = parseInt(match[3] || '0');
+    return (hours * 3600 + minutes * 60 + seconds) * 1000;
+  }
+
+  // Search YouTube for alternative versions
+  app.get("/api/youtube/search", async (req, res) => {
+    try {
+      const { q } = req.query;
+      const apiKey = process.env.VITE_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
+
+      if (!q) return res.json({ items: [] });
+      if (!apiKey) return res.status(500).json({ message: "YouTube API key not configured" });
+
+      // 1. Search for videos
+      const searchRes = await axios.get("https://www.googleapis.com/youtube/v3/search", {
+        params: {
+          part: "snippet",
+          type: "video",
+          maxResults: 10,
+          q: q,
+          key: apiKey
+        }
+      });
+
+      const videoIds = searchRes.data.items.map((item: any) => item.id.videoId).join(",");
+
+      // 2. Get durations for these videos
+      const videoDetailsRes = await axios.get("https://www.googleapis.com/youtube/v3/videos", {
+        params: {
+          part: "contentDetails,snippet",
+          id: videoIds,
+          key: apiKey
+        }
+      });
+
+      const formattedResults = videoDetailsRes.data.items.map((video: any) => ({
+        id: video.id,
+        title: video.snippet.title,
+        channelTitle: video.snippet.channelTitle,
+        thumbnail: video.snippet.thumbnails.medium?.url || video.snippet.thumbnails.default?.url,
+        duration: parseYouTubeDuration(video.contentDetails.duration)
+      }));
+
+      res.json({ items: formattedResults });
+    } catch (error: any) {
+      console.error("YouTube search error:", error?.response?.data || error.message);
+      res.status(500).json({ message: "Failed to search YouTube" });
+    }
+  });
+
   // Get recommendations based on a seed track
   // Get recommendations based on same artist and album
   app.get("/api/recommendations", async (req, res) => {
@@ -550,7 +606,7 @@ export async function registerRoutes(
   app.post("/api/rooms/:roomId/queue", async (req, res) => {
     try {
       const roomId = req.params.roomId;
-      const { songId, addedBy, spotifyId, title, artist, cover, duration, url } = req.body;
+      const { songId, addedBy, spotifyId, youtubeId, title, artist, cover, duration, url } = req.body;
 
       const user = await User.findById(addedBy);
       if (!addedBy || !user) {
@@ -561,7 +617,10 @@ export async function registerRoutes(
 
       // Logic to find or create song
       if (spotifyId) {
+        // Find a song with matching spotifyId ONLY
+        // This prevents duplicate Song records for different versions
         song = await Song.findOne({ spotifyId });
+
         if (!song) {
           // Create new song if it doesn't exist
           if (!title || !artist) {
@@ -573,7 +632,12 @@ export async function registerRoutes(
             cover,
             duration,
             url,
-            spotifyId
+            spotifyId,
+            // Only set youtubeId on master if it's the first time we're adding it
+            // and it wasn't explicitly provided as a "different version"
+            // Actually, for simplicity, let's keep master youtubeId null if we're not sure
+            // the client will search for the "best" match when it plays if not set.
+            youtubeId: undefined 
           });
           await song.save();
         }
@@ -592,6 +656,10 @@ export async function registerRoutes(
       const existingRoom = await Room.findById(roomId);
       const hasPlayingSong = existingRoom?.queueItems?.some((item) => item.isPlaying);
 
+      // Use the provided youtubeId if available, otherwise fallback to the song's master youtubeId
+      const targetYoutubeId = youtubeId || song.youtubeId;
+      const targetDuration = duration || song.duration;
+
       const updatedRoom = await Room.findByIdAndUpdate(
         roomId,
         {
@@ -603,6 +671,8 @@ export async function registerRoutes(
               upvotes: 0,
               downvotes: 0,
               voters: [],
+              youtubeId: targetYoutubeId,
+              duration: targetDuration,
               isPlaying: !hasPlayingSong,
             },
           },

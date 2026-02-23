@@ -1,3 +1,4 @@
+import { useState } from "react";
 import GlassPanel from "@/components/glass-panel";
 import { Button } from "@/components/ui/button";
 import DoubleMarquee from "@/components/double-marquee";
@@ -13,6 +14,21 @@ import {
 } from "lucide-react";
 import YouTube from "react-youtube";
 import { toast } from "@/hooks/use-toast";
+import YoutubeVersionsModal from "./youtube-versions-modal";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useLongPress } from "@/hooks/use-long-press";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 interface PlayerProps {
   className?: string; // For visibility toggling
@@ -74,6 +90,24 @@ export default function Player({
   addToQueueMutation,
   formatTime,
 }: PlayerProps) {
+  const [selectedSongForVersions, setSelectedSongForVersions] =
+    useState<any>(null);
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  const handleOpenVersions = (song: any) => {
+    setSelectedSongForVersions(song);
+    setIsVersionModalOpen(true);
+  };
+
+  const handleSelectVersion = (youtubeItem: any) => {
+    addToQueueMutation.mutate({
+      song: selectedSongForVersions,
+      youtubeVersion: youtubeItem,
+    });
+    setIsVersionModalOpen(false);
+  };
+
   return (
     <GlassPanel
       className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col lg:flex-row items-center ${activeSong ? "lg:items-start lg:justify-start" : "lg:items-center lg:justify-center"} text-center ${activeSong ? "lg:text-left" : "lg:text-center"} overflow-hidden ${className}`}
@@ -380,52 +414,19 @@ export default function Player({
                   No recommendations found
                 </div>
               ) : (
-                recommendations.slice(0, 10).map((song: any) => (
-                  <div
-                    key={`mobile-${song.id}`}
-                    className="flex items-center p-2 rounded-sm hover:bg-white/10 transition-all group "
-                  >
-                    <img
-                      src={song.image}
-                      alt={song.name}
-                      className="w-12 h-12 rounded-sm object-cover mr-2"
+                recommendations
+                  .slice(0, 10)
+                  .map((song: any) => (
+                    <RecommendedSongItem
+                      key={`mobile-${song.id}`}
+                      song={song}
+                      isMobile={isMobile}
+                      handleOpenVersions={handleOpenVersions}
+                      addToQueueMutation={addToQueueMutation}
+                      formatTime={formatTime}
+                      isMobileLayout={true}
                     />
-                    <div className="flex-1 min-w-0 mr-2">
-                      <DoubleMarquee
-                        text1={song.name}
-                        text2={
-                          Array.isArray(song.artists)
-                            ? song.artists.join(", ")
-                            : song.artists
-                        }
-                        className1="font-semibold text-sm text-white text-left"
-                        className2="text-gray-400 text-xs text-left"
-                      />
-                    </div>
-                    <div className="text-gray-400 text-xs mr-2">
-                      {formatTime(song.duration / 1000)}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      onClick={() => addToQueueMutation.mutate(song)}
-                      disabled={
-                        addToQueueMutation.isPending &&
-                        addToQueueMutation.variables?.id === song.id
-                      }
-                      className="h-8 w-8 md:h-10 md:w-10 opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-purple-600 transition-opacity bg-purple-600 rounded-[50%]"
-                    >
-                      {addToQueueMutation.isPending &&
-                      addToQueueMutation.variables?.id === song.id ? (
-                        <Loader2
-                          style={{ width: 20, height: 20 }}
-                          className="w-6 h-6 text-white animate-spin"
-                        />
-                      ) : (
-                        <Plus className="w-6 h-6 text-white" strokeWidth={4} />
-                      )}
-                    </Button>
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </div>
@@ -456,56 +457,110 @@ export default function Player({
             ) : (
               <div className="space-y-2">
                 {recommendations.map((song: any) => (
-                  <div
+                  <RecommendedSongItem
                     key={song.id}
-                    className="flex items-center p-2 rounded-sm hover:bg-white/10 transition-all group"
-                  >
-                    <img
-                      src={song.image}
-                      alt={song.name}
-                      className="w-12 h-12 rounded-sm object-cover mr-2"
-                    />
-                    <div className="flex-1 min-w-0 mr-2">
-                      <DoubleMarquee
-                        text1={song.name}
-                        text2={
-                          Array.isArray(song.artists)
-                            ? song.artists.join(", ")
-                            : song.artists
-                        }
-                        className1="font-semibold text-sm text-white text-left"
-                        className2="text-gray-400 text-xs text-left"
-                      />
-                    </div>
-                    <div className="text-gray-400 text-xs mr-2">
-                      {formatTime(song.duration / 1000)}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      onClick={() => addToQueueMutation.mutate(song)}
-                      disabled={
-                        addToQueueMutation.isPending &&
-                        addToQueueMutation.variables?.id === song.id
-                      }
-                      className="h-8 w-8 md:h-10 md:w-10 opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-purple-600 transition-opacity bg-purple-600 rounded-[50%]"
-                    >
-                      {addToQueueMutation.isPending &&
-                      addToQueueMutation.variables?.id === song.id ? (
-                        <Loader2
-                          style={{ width: 20, height: 20 }}
-                          className="w-6 h-6 text-white animate-spin"
-                        />
-                      ) : (
-                        <Plus className="w-6 h-6 text-white" strokeWidth={4} />
-                      )}
-                    </Button>
-                  </div>
+                    song={song}
+                    isMobile={isMobile}
+                    handleOpenVersions={handleOpenVersions}
+                    addToQueueMutation={addToQueueMutation}
+                    formatTime={formatTime}
+                  />
                 ))}
               </div>
             )}
           </div>
         </div>
       )}
+      <YoutubeVersionsModal
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
+        song={selectedSongForVersions}
+        onSelect={handleSelectVersion}
+        formatTime={formatTime}
+      />
     </GlassPanel>
+  );
+}
+
+function RecommendedSongItem({
+  song,
+  isMobile,
+  handleOpenVersions,
+  addToQueueMutation,
+  formatTime,
+  isMobileLayout = false,
+}: {
+  song: any;
+  isMobile: boolean;
+  handleOpenVersions: (song: any) => void;
+  addToQueueMutation: any;
+  formatTime: (time: number) => string;
+  isMobileLayout?: boolean;
+}) {
+  return (
+    <div className="flex items-center p-2 rounded-sm hover:bg-white/10 transition-all group cursor-default outline-none">
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="flex flex-1 items-center min-w-0 mr-2">
+            <img
+              src={song.image}
+              alt={song.name}
+              className="w-12 h-12 rounded-sm object-cover mr-2"
+            />
+            <div className="flex-1 min-w-0 mr-2">
+              <DoubleMarquee
+                text1={song.name}
+                text2={
+                  Array.isArray(song.artists)
+                    ? song.artists.join(", ")
+                    : song.artists
+                }
+                className1="font-semibold text-sm text-white text-left"
+                className2="text-gray-400 text-xs text-left"
+              />
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="bg-black/60 backdrop-blur-xl border-white/10 text-white min-w-[160px]">
+          <ContextMenuItem
+            onClick={() => handleOpenVersions(song)}
+            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
+          >
+            Find different versions
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <div className="text-gray-400 text-xs mr-2">
+        {formatTime(song.duration / 1000)}
+      </div>
+      <div
+        className={`flex items-center gap-1 transition-opacity ${isMobileLayout ? "opacity-100 lg:opacity-0" : ""} group-hover:opacity-100`}
+      >
+        <Button
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            addToQueueMutation.mutate({ song });
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          disabled={
+            addToQueueMutation.isPending &&
+            addToQueueMutation.variables?.song?.id === song.id
+          }
+          className={`h-8 w-8 ${isMobileLayout ? "md:h-10 md:w-10" : "md:h-9 md:w-9"} opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-purple-600 bg-purple-600 rounded-full`}
+        >
+          {addToQueueMutation.isPending &&
+          addToQueueMutation.variables?.song?.id === song.id ? (
+            <Loader2
+              style={{ width: 20, height: 20 }}
+              className="w-6 h-6 text-white animate-spin"
+            />
+          ) : (
+            <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+          )}
+        </Button>
+      </div>
+    </div>
   );
 }

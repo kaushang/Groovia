@@ -12,6 +12,21 @@ import {
   Loader2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import YoutubeVersionsModal from "./youtube-versions-modal";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useLongPress } from "@/hooks/use-long-press";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 interface QueueListProps {
   className?: string; // For visibility toggling
@@ -36,6 +51,29 @@ export default function QueueList({
     "up-next",
   );
   const [slideDirection, setSlideDirection] = useState(0); // -1 for left, 1 for right
+  const [selectedSongForVersions, setSelectedSongForVersions] =
+    useState<any>(null);
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  const handleOpenVersions = (song: any) => {
+    setSelectedSongForVersions(song);
+    setIsVersionModalOpen(true);
+  };
+
+  const handleSelectVersion = (youtubeItem: any) => {
+    addToQueueMutation.mutate({
+      song: selectedSongForVersions,
+      youtubeVersion: youtubeItem,
+    });
+    setIsVersionModalOpen(false);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   return (
     <GlassPanel
@@ -270,69 +308,20 @@ export default function QueueList({
                     </motion.div>
                   );
                 })
-            ) : 
-            // History List
+            ) : // History List
             room?.history && room.history.length > 0 ? (
-              [...room.history].reverse().map((item: any, index: any) => (
-                <div
-                  key={item._id || index}
-                  className="flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20"
-                >
-                  <div className="text-gray-200 text-xs w-2 text-center mr-2">
-                    {index + 1}
-                  </div>
-                  <img
-                    src={
-                      item.song?.cover ||
-                      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
-                    }
-                    alt={`${item.song?.title || "Song"} artwork`}
-                    className="w-12 h-12 rounded-sm object-cover mr-3 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
+              [...room.history]
+                .reverse()
+                .map((item: any, index: any) => (
+                  <HistoryItem
+                    key={item._id || index}
+                    item={item}
+                    index={index}
+                    isMobile={isMobile}
+                    handleOpenVersions={handleOpenVersions}
+                    addToQueueMutation={addToQueueMutation}
                   />
-                  <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
-                    <DoubleMarquee
-                      text1={item.song?.title || "Unknown Title"}
-                      text2={item.song?.artist || "Unknown Artist"}
-                      className1="font-medium text-xs md:text-sm text-white/70 group-hover:text-white"
-                      className2="font-medium text-xs md:text-xs text-gray-400"
-                    />
-                    <p className="text-white/40 text-[10px] mt-0.5">
-                      Played at{" "}
-                      {new Date(item.playedAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="ml-1 h-8 w-8 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 md:opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Play Again"
-                    disabled={
-                      addToQueueMutation.isPending &&
-                      addToQueueMutation.variables?.id === item.song.spotifyId
-                    }
-                    onClick={() =>
-                      addToQueueMutation.mutate({
-                        id: item.song.spotifyId,
-                        name: item.song.title,
-                        artists: [item.song.artist], // API expects array
-                        image: item.song.cover,
-                        duration: item.song.duration,
-                        preview_url: item.song.url,
-                      })
-                    }
-                  >
-                    {addToQueueMutation.isPending &&
-                    addToQueueMutation.variables?.id === item.song.spotifyId ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <RotateCcw className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              ))
+                ))
             ) : (
               <div className="flex flex-col items-center justify-center h-40 text-center text-gray-400 bg-white/5 rounded-lg m-2">
                 <History className="w-8 h-8 mb-2 opacity-50" />
@@ -342,6 +331,106 @@ export default function QueueList({
           </motion.div>
         </AnimatePresence>
       </div>
+
+      <YoutubeVersionsModal
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
+        song={selectedSongForVersions}
+        onSelect={handleSelectVersion}
+        formatTime={formatTime}
+      />
     </GlassPanel>
+  );
+}
+
+function HistoryItem({
+  item,
+  index,
+  isMobile,
+  handleOpenVersions,
+  addToQueueMutation,
+}: {
+  item: any;
+  index: number;
+  isMobile: boolean;
+  handleOpenVersions: (song: any) => void;
+  addToQueueMutation: any;
+}) {
+  const songObj = {
+    id: item.song.spotifyId,
+    name: item.song.title,
+    artists: [item.song.artist],
+    image: item.song.cover,
+    duration: item.song.duration,
+    preview_url: item.song.url,
+  };
+  return (
+    <div className="flex items-center p-2 mr-1 rounded-lg hover:bg-white/10 transition-all group bg-black/20 cursor-default outline-none">
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="flex flex-1 items-center min-w-0">
+            <div className="text-gray-200 text-xs w-2 text-center mr-2">
+              {index + 1}
+            </div>
+            <img
+              src={
+                item.song?.cover ||
+                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=50&h=50&fit=crop&crop=center"
+              }
+              alt={`${item.song?.title || "Song"} artwork`}
+              className="w-12 h-12 rounded-sm object-cover mr-3 group-hover:grayscale-0 group-hover:opacity-100 transition-all"
+            />
+            <div className="flex-1 min-w-0 overflow-hidden grid grid-cols-1">
+              <DoubleMarquee
+                text1={item.song?.title || "Unknown Title"}
+                text2={item.song?.artist || "Unknown Artist"}
+                className1="font-medium text-xs md:text-sm text-white/70 group-hover:text-white"
+                className2="font-medium text-xs md:text-xs text-gray-400"
+              />
+              <p className="text-white/40 text-[10px] mt-0.5">
+                Played at{" "}
+                {new Date(item.playedAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="bg-black/60 backdrop-blur-xl border-white/10 text-white min-w-[160px]">
+          <ContextMenuItem
+            onClick={() => handleOpenVersions(songObj)}
+            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
+          >
+            Find different versions
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="ml-1 h-8 w-8 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 md:opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Play Again"
+        disabled={
+          addToQueueMutation.isPending &&
+          addToQueueMutation.variables?.song?.id === item.song.spotifyId
+        }
+        onClick={(e) => {
+          e.stopPropagation();
+          addToQueueMutation.mutate({
+            song: songObj,
+          });
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {addToQueueMutation.isPending &&
+        addToQueueMutation.variables?.song?.id === item.song.spotifyId ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <RotateCcw className="w-4 h-4" />
+        )}
+      </Button>
+    </div>
   );
 }

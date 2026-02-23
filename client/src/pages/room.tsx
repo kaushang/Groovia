@@ -429,19 +429,32 @@ export default function Room() {
 
   useEffect(() => {
     if (activeSong) {
-      // 1. Check if we already have a saved YouTube ID (ZERO API CALLS)
+      // 1. Check if we have a version-specific YouTube ID in the queue item
+      if (activeSong.youtubeId) {
+        console.log(
+          "🎯 Using version-specific YouTube ID:",
+          activeSong.youtubeId,
+        );
+        setYoutubeVideoId(activeSong.youtubeId);
+        return;
+      }
+
+      // 2. Fallback to the saved master YouTube ID
       if (activeSong.song.youtubeId) {
-        console.log("🎯 Using saved YouTube ID:", activeSong.song.youtubeId);
+        console.log(
+          "🎯 Using saved master YouTube ID:",
+          activeSong.song.youtubeId,
+        );
         setYoutubeVideoId(activeSong.song.youtubeId);
         return;
       }
 
-      // 2. If not, search YouTube and save it
+      // 3. If not, search YouTube and save it as the master/default
       setYoutubeVideoId(null);
       const artistName = Array.isArray(activeSong.song.artists)
         ? activeSong.song.artists.join(" ")
         : activeSong.song.artist;
-      // Pass the song ID so we can save the result
+      // Pass the song ID so we can save the result as the master
       searchYouTube(
         `${activeSong.song.title} ${artistName} Full Song`,
         activeSong.song._id || activeSong.song.id,
@@ -449,10 +462,16 @@ export default function Room() {
     } else {
       setYoutubeVideoId(null);
     }
-  }, [activeSong?._id, activeSong?.song?.youtubeId]);
+  }, [activeSong?._id, activeSong?.youtubeId, activeSong?.song?.youtubeId]);
 
   const addToQueueMutation = useMutation({
-    mutationFn: (song: any) =>
+    mutationFn: ({
+      song,
+      youtubeVersion,
+    }: {
+      song: any;
+      youtubeVersion?: any;
+    }) =>
       apiRequest("POST", `/api/rooms/${roomId}/queue`, {
         spotifyId: song.id,
         title: song.name,
@@ -460,7 +479,8 @@ export default function Room() {
           ? song.artists.join(", ")
           : song.artists,
         cover: song.image,
-        duration: song.duration,
+        duration: youtubeVersion ? youtubeVersion.duration : song.duration,
+        youtubeId: youtubeVersion ? youtubeVersion.id : undefined,
         url: song.preview_url,
         addedBy: userId,
       }),
@@ -622,12 +642,14 @@ export default function Room() {
 
           // Reset/Update player state
           setCurrentTime(0);
-          if (nextSong?.song?.duration) {
-            setDuration(nextSong.song.duration / 1000);
+          const nextDuration = nextSong.duration || nextSong.song.duration;
+          if (nextDuration) {
+            setDuration(nextDuration / 1000);
           }
           // Optimistically set YouTube ID if available to avoid flicker
-          if (nextSong.song?.youtubeId) {
-            setYoutubeVideoId(nextSong.song.youtubeId);
+          const nextYoutubeId = nextSong.youtubeId || nextSong.song.youtubeId;
+          if (nextYoutubeId) {
+            setYoutubeVideoId(nextYoutubeId);
           } else {
             setYoutubeVideoId(null);
           }
@@ -663,10 +685,11 @@ export default function Room() {
     const percentage = x / width;
 
     // Use stored duration or fallback to song metadata (converted to seconds if needed)
-    const songDuration = activeSong.song.duration
-      ? activeSong.song.duration / 1000
-      : 0;
-    const totalDuration = duration || songDuration || 0;
+    const queueDuration = activeSong.duration;
+    const songDuration = activeSong.song.duration;
+    const targetDuration = (queueDuration || songDuration || 0) / 1000;
+
+    const totalDuration = duration || targetDuration || 0;
     const newTime = percentage * totalDuration;
 
     if (audioRef.current) audioRef.current.currentTime = newTime;
