@@ -15,9 +15,7 @@ COPY . .
 # Build the application
 # We need to pass build-time env vars for Vite if any
 ARG VITE_YOUTUBE_API_KEY
-ARG VITE_CLERK_PUBLISHABLE_KEY
 ENV VITE_YOUTUBE_API_KEY=$VITE_YOUTUBE_API_KEY
-ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 
 RUN npm run build
 
