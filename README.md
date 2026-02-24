@@ -17,10 +17,10 @@ In social gatherings or shared workspaces, when people decide to listen to music
 
 **All this, without asking anyone their phone or requesting anyone to play your favorite music.**
 
-
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **Framework:** React (Vite)
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS, Radix UI
@@ -29,15 +29,16 @@ In social gatherings or shared workspaces, when people decide to listen to music
 - **Real-time:** Socket.io-client
 
 ### Backend
+
 - **Runtime:** Node.js
 - **Framework:** Express
 - **Real-time:** Socket.io (WebSockets for instant queue updates, user joins, votes)
 - **Database Helper:** Mongoose
 
 ### Database
+
 - **Database:** MongoDB
 - **Architecture:** User-centric and Room-based document model.
-
 
 ## 💾 Database Architecture
 
@@ -46,32 +47,70 @@ The project uses **MongoDB** with Mongoose for schema modeling. The architecture
 ### Key Collections & Schemas
 
 1.  **Users**
-    *   Simple identity management using usernames.
-    *   Tracks account creation time.
+    - Simple identity management using usernames.
+    - Tracks account creation time.
 
 2.  **Rooms**
-    *   The core entity of the application.
-    *   **Members:** An array tracking who is currently in the room.
-    *   **Queue System:** Contains an embedded list of **QueueItems**. This array holds the state of the playlist, including which song is playing, who added it, and its current vote score.
+    - The core entity of the application.
+    - **Members:** An array tracking who is currently in the room.
+    - **Queue System:** Contains an embedded list of **QueueItems**. This array holds the state of the playlist, including which song is playing, who added it, and its current vote score.
 
 3.  **Songs**
-    *   Acts as a cache for music metadata.
-    *   Stores `spotifyId`, `title`, `artist`, `cover` URL, and `duration`.
-    *   Prevents redundant API calls if a song is added frequently.
-
+    - Acts as a cache for music metadata.
+    - Stores `spotifyId`, `title`, `artist`, `cover` URL, and `duration`.
+    - Prevents redundant API calls if a song is added frequently.
 
 ## 🔗 API Integration
 
 Groovia cleverly combines two powerful APIs to provide the best user experience: **Spotify for Data** and **YouTube for Playback**.
 
 ### 1. Spotify API 🎧
+
 **Why is it used?**
 Spotify maintains one of the most comprehensive and well-structured databases of music metadata (Song Titles, Artist Names, Album Art, Duration) in the world.
 
 ### 2. YouTube API 📺
+
 **Why is it used?**
 While Spotify is great for data, its playback SDK limits streaming to Premium users or imposes varying restrictions. YouTube provides a universally accessible playback source.
 
+## 🐳 Docker Deployment
+
+Groovia is fully dockerized for easy setup. You can run the entire stack (App + MongoDB) with a single command.
+
+### 1. Prerequisites
+
+- Docker and Docker Compose installed.
+- A `.env` file in the root directory with the following keys:
+
+| Variable                     | Description                           |
+| :--------------------------- | :------------------------------------ |
+| `SPOTIFY_CLIENT_ID`          | Your Spotify App Client ID            |
+| `SPOTIFY_CLIENT_SECRET`      | Your Spotify App Client Secret        |
+| `YOUTUBE_API_KEY`            | Your Google/YouTube API Key           |
+| `PORT`                       | 5000 (Recommended)                    |
+
+### 2. Running Locally
+
+Run the following command to start the containers:
+
+```bash
+docker-compose up --build -d
+```
+
+### 3. Pushing to Docker Hub
+
+To share Groovia on Docker Hub:
+
+1. **Build the image**:
+   ```bash
+   docker build -t your-username/groovia .
+   ```
+2. **Push the image**:
+   ```bash
+   docker push your-username/groovia
+   ```
+   _Note: Your sensitive `.env` file is protected and will **NOT** be included in the pushed image thanks to the `.dockerignore` file._
 
 ## 🏁 Overall
 

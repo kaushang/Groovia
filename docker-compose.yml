@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        VITE_YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/groovia
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - PORT=5000
+    depends_on:
+      - mongodb
+    volumes:
+      - groovia_covers:/app/dist/public/covers
+      - groovia_songs:/app/dist/public/songs
+    restart: always
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: always
+
+volumes:
+  mongodb_data:
+  groovia_covers:
+  groovia_songs:
