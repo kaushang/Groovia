@@ -167,74 +167,96 @@ export async function registerRoutes(
     }
   });
 
-  // Get recommendations based on a seed track
   // Get recommendations based on same artist and album
   app.get("/api/recommendations", async (req, res) => {
     try {
       const { seed_track, limit = 10 } = req.query;
-
       if (!seed_track) {
         return res.status(400).json({ message: "Seed track ID is required" });
       }
-
+      
       const token = await getSpotifyToken();
       const headers = { Authorization: `Bearer ${token}` };
-
+      
       // 1. Get Track Details (to find Artist & Album)
       const trackResponse = await axios.get(`https://api.spotify.com/v1/tracks/${seed_track}`, { headers });
       const trackDetails = trackResponse.data;
-
+      
       const artistId = trackDetails.artists[0]?.id;
       const albumId = trackDetails.album?.id;
       const albumImage = trackDetails.album?.images[0]?.url;
       const albumName = trackDetails.album?.name;
-
+      
       const promises = [];
-
-      // 2. Fetch Artist Top Tracks
+      
+      // 2. Fetch Artist Name & Fetch Artist Top Tracks (Search workaround)
       if (artistId) {
         promises.push(
-          axios.get(`https://api.spotify.com/v1/artists/${artistId}/top-tracks`, {
-            headers,
-            params: { market: 'US' }
-          }).then(r => r.data.tracks.map((t: any) => ({ ...t, source: 'artist' })))
+          (async () => {
+             // Request to fetch Artist's name using the artist id (as requested)
+             try {
+               const artistRes = await axios.get(`https://api.spotify.com/v1/artists/${artistId}`, { headers });
+               const artistName = artistRes.data.name;
+               
+               // Use artist name in the search query to fetch tracks
+               const searchRes = await axios.get("https://api.spotify.com/v1/search", {
+                 headers,
+                 params: {
+                   type: "track",
+                   q: `artist:"${artistName}"`,
+                   limit: 10,
+                 }
+               });
+               
+               return searchRes.data.tracks.items.map((t: any) => ({ ...t, source: 'artist' }));
+             } catch (err: any) {
+               console.warn("Could not fetch artist top tracks:", err?.response?.data || err.message);
+               return [];
+             }
+          })()
         );
       }
-
+      
       // 3. Fetch Album Tracks
       if (albumId) {
         promises.push(
           axios.get(`https://api.spotify.com/v1/albums/${albumId}/tracks`, {
             headers,
             params: { limit: 20, market: 'US' }
-          }).then(r => r.data.items.map((t: any) => ({
+          })
+          .then(r => r.data.items.map((t: any) => ({
             ...t,
             // Album tracks endpoint doesn't return album object with images, so we manually add it
             album: { name: albumName, images: [{ url: albumImage }] },
             source: 'album'
           })))
+          .catch(err => {
+            console.warn("Could not fetch album tracks:", err?.response?.data || err.message);
+            return []; // Return empty array on failure so Promise.all doesn't crash
+          })
         );
       }
-
+      
       const results = await Promise.all(promises);
       let allTracks = results.flat();
-
+      
       // 4. Filter out duplicates and the current seed song
       const seenIds = new Set();
-      seenIds.add(seed_track); // Don't recommend the current song
-
+      seenIds.add(seed_track); // Don't recommend the current playing song
+      
       const uniqueTracks = allTracks.filter((track: any) => {
+        if (!track || !track.id) return false;
         if (seenIds.has(track.id)) return false;
         seenIds.add(track.id);
         return true;
       });
-
+      
       // 5. Shuffle the array to mix Artist and Album tracks
       for (let i = uniqueTracks.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [uniqueTracks[i], uniqueTracks[j]] = [uniqueTracks[j], uniqueTracks[i]];
       }
-
+      
       // 6. Limit and Format
       const finalTracks = uniqueTracks.slice(0, parseInt(limit as string)).map((track: any) => ({
         id: track.id,
