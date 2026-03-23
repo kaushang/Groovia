@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Users, Vote, Share, Music } from "lucide-react";
 import { FaPlus } from "react-icons/fa";
 import { BiDoorOpen } from "react-icons/bi";
-import JoinRoomModal from "@/components/join-room-modal";
-import CreateRoomModal from "@/components/create-room-modal";
+import JoinRoomModal from "@/components/modals/join-room-modal";
+import CreateRoomModal from "@/components/modals/create-room-modal";
 import FeatureCard from "@/components/feature-card";
 
 export default function Landing() {
