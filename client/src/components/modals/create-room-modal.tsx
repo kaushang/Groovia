@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@clerk/clerk-react";
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export default function CreateRoomModal({
   const [username, setUsername] = useState("");
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { user, isSignedIn, isLoaded } = useUser();
 
   const createRoomMutation = useMutation({
     mutationFn: ({ name, username }: { name: string; username: string }) =>
@@ -55,9 +57,9 @@ export default function CreateRoomModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const name = roomName.trim();
-    const trimmedUsername = username.trim();
+    const finalUsername = isSignedIn ? user?.username || user?.firstName || "Unknown User" : username.trim();
 
-    if (trimmedUsername.length === 0) {
+    if (!isSignedIn && finalUsername.length === 0) {
       toast({
         title: "Username required",
         description: "Please enter a username",
@@ -73,7 +75,7 @@ export default function CreateRoomModal({
       });
       return;
     }
-    createRoomMutation.mutate({ name, username: trimmedUsername });
+    createRoomMutation.mutate({ name, username: finalUsername as string });
   };
 
   const handleRoomNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,17 +102,19 @@ export default function CreateRoomModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={handleUsernameChange}
-              placeholder="Enter Name"
-              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide p-6"
-              data-testid="input-user-name"
-            />
-          </div>
+          {(!isLoaded || !isSignedIn) && (
+            <div>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={handleUsernameChange}
+                placeholder="Enter Name"
+                className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide p-6"
+                data-testid="input-user-name"
+              />
+            </div>
+          )}
 
           <div>
             <Input

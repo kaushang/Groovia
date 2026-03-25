@@ -39,7 +39,7 @@ export default function AnimatedLogo({ size = "default" }: AnimatedLogoProps) {
   const currentBottomMarginClass = bottomTextMarginClasses[size] || bottomTextMarginClasses.default;
 
   return (
-    <div>
+    <div className="w-fit">
       <h2 className={`${currentTextClass} ${currentTopMarginClass} font-light text-gray-200 animate-pulse-soft px-2 text-left`}>
         Because music
       </h2>

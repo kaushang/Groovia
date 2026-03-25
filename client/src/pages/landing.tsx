@@ -6,11 +6,15 @@ import { BiDoorOpen } from "react-icons/bi";
 import JoinRoomModal from "@/components/modals/join-room-modal";
 import CreateRoomModal from "@/components/modals/create-room-modal";
 import FeatureCard from "@/components/feature-card";
+import { useUser } from "@clerk/clerk-react";
+import { useLocation } from "wouter";
 import AnimatedLogo from "@/components/animated-logo";
 
 export default function Landing() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { user } = useUser();
+  const [, setLocation] = useLocation();
 
   const features = [
     {
@@ -28,7 +32,8 @@ export default function Landing() {
     {
       icon: Music,
       title: "Vast Music Library",
-      description: "Access Spotify's rich metadata to search and play any song you want",
+      description:
+        "Access Spotify's rich metadata to search and play any song you want",
       color: "text-green-400",
     },
     {
@@ -40,10 +45,27 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen flex py-12 md:justify-center items-center w-full px-6">
+    <div className="min-h-screen flex py-12 md:justify-center items-center w-full px-6 relative">
+      <div className="absolute top-4 right-6 z-50 md:block">
+        {user ? (
+          <Button
+            onClick={() => setLocation("/profile")}
+            className="bg-gray-100/10 border border-gray-400/20 text-md text-white/80 font-semibold px-4 py-2"
+          >
+            Profile
+          </Button>
+        ) : (
+          <Button
+            onClick={() => setLocation("/auth")}
+            className="bg-gray-100/10 border border-gray-400/20 text-sm lg:text-md text-white/80 font-semibold lg:px-4 lg:py-2 px-3"
+          >
+            Register
+          </Button>
+        )}
+      </div>
       <div className="text-center max-w-8xl mx-auto w-full">
         {/* Hero Logo and Animation */}
-        <div className="md:h-fit mb-12 md:max-w-[500px] flex items-center flex-col justify-center mx-auto">
+        <div className="md:h-fit mb-12 mt-2 md:max-w-[500px] flex items-center flex-col justify-center mx-auto">
           <AnimatedLogo size="lg" />
         </div>
 

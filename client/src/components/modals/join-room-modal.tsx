@@ -11,6 +11,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useUser } from "@clerk/clerk-react";
 
 interface JoinRoomModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export default function JoinRoomModal({
   const [username, setUsername] = useState("");
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { user, isSignedIn, isLoaded } = useUser();
 
   const isLinkJoin = !!initialCode;
 
@@ -57,8 +59,8 @@ export default function JoinRoomModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedUsername = username.trim();
-    if (trimmedUsername.length === 0) {
+    const finalUsername = isSignedIn ? user?.username || user?.firstName || "Unknown User" : username.trim();
+    if (!isSignedIn && finalUsername.length === 0) {
       toast({
         title: "Username required",
         description: "Please enter a username",
@@ -67,7 +69,7 @@ export default function JoinRoomModal({
       return;
     }
     if (roomCode.length === 6) {
-      joinRoomMutation.mutate({ username: trimmedUsername });
+      joinRoomMutation.mutate({ username: finalUsername as string });
     } else {
       toast({
         title: "Invalid code",
@@ -107,17 +109,19 @@ export default function JoinRoomModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={handleUsernameChange}
-              placeholder="Enter Name"
-              className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide p-6"
-              data-testid="input-user-name"
-            />
-          </div>
+          {(!isLoaded || !isSignedIn) && (
+            <div>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={handleUsernameChange}
+                placeholder="Enter Name"
+                className="bg-white/10 border-white/20 placeholder:text-white-400 md:text-[16px] tracking-wide p-6"
+                data-testid="input-user-name"
+              />
+            </div>
+          )}
           {!isLinkJoin && (
             <div>
               <Input
