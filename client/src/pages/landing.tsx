@@ -6,6 +6,7 @@ import { BiDoorOpen } from "react-icons/bi";
 import JoinRoomModal from "@/components/modals/join-room-modal";
 import CreateRoomModal from "@/components/modals/create-room-modal";
 import FeatureCard from "@/components/feature-card";
+import AnimatedLogo from "@/components/animated-logo";
 
 export default function Landing() {
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -43,37 +44,7 @@ export default function Landing() {
       <div className="text-center max-w-8xl mx-auto w-full">
         {/* Hero Logo and Animation */}
         <div className="md:h-fit mb-12 md:max-w-[500px] flex items-center flex-col justify-center mx-auto">
-          <div >
-            <h2 className="text-md md:text-3xl -mb-4 md:-mb-6 font-light text-gray-200 animate-pulse-soft px-2 text-left">
-              Because music
-            </h2>
-            <div className="relative w-full max-w-[300px] sm:max-w-[400px] md:max-w-[500px] mx-auto">
-              <img
-                src="/groovia_logo.avif"
-                alt="Groovia"
-                className="w-full h-auto select-none pointer-events-none"
-              />
-              {/* First icon - right to R */}
-              <div className="absolute w-[16%] top-[50%] -translate-y-1/2 left-[31%] rotate-[40deg]">
-                <img
-                  src="/groovia_icon.avif"
-                  alt=""
-                  className="w-full animate-spin-reverse-slow"
-                />
-              </div>
-              {/* Second icon - left to V */}
-              <div className="absolute w-[16%] top-[50%] -translate-y-1/2 left-[48%] rotate-[40deg]">
-                <img
-                  src="/groovia_icon.avif"
-                  alt=""
-                  className="w-full animate-spin-slow"
-                />
-              </div>
-            </div>
-            <h2 className="text-md md:text-3xl -mt-5 md:-mt-6 font-light text-gray-200 animate-pulse-soft px-2 text-right">
-              is better together
-            </h2>
-          </div>
+          <AnimatedLogo size="lg" />
         </div>
 
         {/* Main Action Buttons */}
