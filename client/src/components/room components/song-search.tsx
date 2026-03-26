@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X, Loader2, Plus } from "lucide-react";
@@ -8,13 +10,6 @@ import GlassPanel from "@/components/glass-panel";
 import DoubleMarquee from "@/components/double-marquee";
 import YoutubeVersionsModal from "./youtube-versions-modal";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useLongPress } from "@/hooks/use-long-press";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -39,6 +34,42 @@ export default function SongSearch({
     useState<any>(null);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
   const isMobile = useIsMobile();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  const addToFavoritesMutation = useMutation({
+    mutationFn: async (song: any) => {
+      const token = await getToken();
+      if (!token) throw new Error("Not authenticated");
+      
+      const payload = {
+        spotifyId: song.id,
+        title: song.name,
+        artists: song.artists,
+        cover: song.image,
+        duration: song.duration,
+        preview_url: song.preview_url,
+      };
+
+      const res = await axios.post("/api/favorites", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.data;
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Added to favorites ❤️",
+        description: `${variables.name} has been saved to your profile.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot add to favorites",
+        description: error.response?.data?.message || "Please log in to save songs.",
+        variant: "destructive",
+      });
+    },
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -135,6 +166,7 @@ export default function SongSearch({
                 isMobile={isMobile}
                 handleOpenVersions={handleOpenVersions}
                 addToQueueMutation={addToQueueMutation}
+                addToFavoritesMutation={addToFavoritesMutation}
                 formatTime={formatTime}
               />
             ))}
@@ -186,12 +218,14 @@ function SongItem({
   isMobile,
   handleOpenVersions,
   addToQueueMutation,
+  addToFavoritesMutation,
   formatTime,
 }: {
   song: any;
   isMobile: boolean;
   handleOpenVersions: (song: any) => void;
   addToQueueMutation: any;
+  addToFavoritesMutation: any;
   formatTime: (time: number) => string;
 }) {
   return (
@@ -227,6 +261,12 @@ function SongItem({
             className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
           >
             Find different versions
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => addToFavoritesMutation.mutate(song)}
+            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white text-rose-400 focus:text-rose-300"
+          >
+            Add to favorites
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

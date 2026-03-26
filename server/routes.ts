@@ -5,11 +5,12 @@ import {
   ServerResponse,
   type Server,
 } from "http";
-import { User, Room, Song } from "@shared/schema";
+import { User, Room, Song, RegisteredUser } from "@shared/schema";
 import axios from "axios";
 import qs from "qs";
 import { Server as SocketIOServer } from "socket.io";
 import { connectedUsers, rooms } from "./state";
+import { requireAuth, getAuth, clerkClient } from "@clerk/express";
 
 export async function getSpotifyToken() {
   const tokenUrl = "https://accounts.spotify.com/api/token";
@@ -521,6 +522,106 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error saving YouTube ID:", error);
       res.status(500).json({ message: "Failed to save YouTube ID" });
+    }
+  });
+
+  // Add song to user's favorites
+  app.post("/api/favorites", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const { spotifyId, title, artist, cover, duration, preview_url, artists } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!spotifyId) {
+        return res.status(400).json({ message: "Song must have a spotifyId" });
+      }
+
+      // Check if user exists
+      let user = await RegisteredUser.findOne({ clerkId: userId });
+      
+      if (!user) {
+        // Fallback: Lazy creation if webhook missed this user (e.g. old user account during testing)
+        try {
+          const clerkUser = await clerkClient.users.getUser(userId);
+          const email = clerkUser.emailAddresses[0]?.emailAddress || "unknown@clerk.user";
+          
+          user = new RegisteredUser({
+            clerkId: userId,
+            email: email,
+            firstName: clerkUser.firstName || "",
+            lastName: clerkUser.lastName || "",
+            imageUrl: clerkUser.imageUrl || "",
+          });
+          await user.save();
+          console.log(`✅ Lazy-created missing RegisteredUser for: ${email}`);
+        } catch (err) {
+          console.error("Failed to lazy create user from Clerk API:", err);
+          return res.status(404).json({ message: "User not found in database" });
+        }
+      }
+
+      // Find or create song
+      let song = await Song.findOne({ spotifyId });
+
+      if (!song) {
+        // Handle array of artists or single artist string
+        const artistStr = Array.isArray(artists) ? artists.join(", ") : (artist || "Unknown Artist");
+        
+        song = new Song({
+          title: title || "Unknown Title",
+          artist: artistStr,
+          cover: cover,
+          duration: duration,
+          url: preview_url,
+          spotifyId: spotifyId
+        });
+        await song.save();
+      }
+
+      // Add to favorites if not already present
+      if (!user.favoriteSongs.includes(song._id)) {
+        user.favoriteSongs.push(song._id);
+        await user.save();
+      }
+
+      res.json({ success: true, message: "Added to favorites" });
+    } catch (error) {
+      console.error("Error adding to favorites:", error);
+      res.status(500).json({ message: "Failed to add to favorites" });
+    }
+  });
+
+  // Get user's favorite songs
+  app.get("/api/favorites", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      
+      const user = await RegisteredUser.findOne({ clerkId: userId })
+        .populate("favoriteSongs");
+
+      if (!user) {
+        return res.json({ favorites: [] });
+      }
+
+      // Return the populated favorite songs array mapped to Spotify format
+      const formattedFavorites = user.favoriteSongs.map((song: any) => ({
+        id: song.spotifyId,
+        _id: song._id, // Add Mongo ID just in case it's needed for un-favoriting later
+        name: song.title,
+        artists: [song.artist],
+        image: song.cover,
+        duration: song.duration,
+        preview_url: song.url
+      }));
+
+      // Reverse it so newest added are typically at front (since push appends to end)
+      res.json({ favorites: formattedFavorites.reverse() });
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ message: "Failed to fetch favorites" });
     }
   });
 

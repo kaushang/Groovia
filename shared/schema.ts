@@ -1,11 +1,23 @@
 import { Schema, model } from "mongoose";
 
-// Users Schema
+// Users Schema (for unregistered or basic users)
 const userSchema = new Schema({
   username: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
 export const User = model("User", userSchema);
+
+// Registered Users Schema (from Clerk)
+const registeredUserSchema = new Schema({
+  clerkId: { type: String, required: true, unique: true },
+  email: { type: String, required: true },
+  imageUrl: { type: String },
+  friends: [{ type: Schema.Types.ObjectId, ref: "RegisteredUser" }],
+  playlists: [{ type: Schema.Types.ObjectId, ref: "Playlist" }],
+  favoriteSongs: [{ type: Schema.Types.ObjectId, ref: "Song" }],
+  createdAt: { type: Date, default: Date.now },
+});
+export const RegisteredUser = model("RegisteredUser", registeredUserSchema);
 
 // Rooms Schema
 const roomSchema = new Schema({

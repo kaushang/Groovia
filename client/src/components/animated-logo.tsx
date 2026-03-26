@@ -1,11 +1,12 @@
 import React from "react";
 
 type AnimatedLogoProps = {
-  size?: "sm" | "md" | "lg" | "default";
+  size?: "xs" | "sm" | "md" | "lg" | "default";
 };
 
 export default function AnimatedLogo({ size = "default" }: AnimatedLogoProps) {
   const sizeClasses = {
+    xs: "max-w-[160px] sm:max-w-[190px] md:max-w-[220px]",
     sm: "max-w-[200px] sm:max-w-[250px] md:max-w-[300px]",
     md: "max-w-[250px] sm:max-w-[350px] md:max-w-[400px]",
     lg: "max-w-[400px] sm:max-w-[500px] md:max-w-[600px]",
@@ -13,6 +14,7 @@ export default function AnimatedLogo({ size = "default" }: AnimatedLogoProps) {
   };
 
   const textClasses = {
+    xs: "text-[8px] sm:text-[10px] md:text-[12px]",
     sm: "text-sm sm:text-base md:text-lg",
     md: "text-base sm:text-lg md:text-2xl",
     lg: "text-xl sm:text-2xl md:text-3xl",
@@ -20,6 +22,7 @@ export default function AnimatedLogo({ size = "default" }: AnimatedLogoProps) {
   };
 
   const topTextMarginClasses = {
+    xs: "-mb-1 md:-mb-3",
     sm: "-mb-2 md:-mb-5",
     md: "-mb-3 md:-mb-6",
     lg: "-mb-4 md:-mb-6",
@@ -27,20 +30,24 @@ export default function AnimatedLogo({ size = "default" }: AnimatedLogoProps) {
   };
 
   const bottomTextMarginClasses = {
+    xs: "-mt-2 md:-mt-3",
     sm: "-mt-3 md:-mt-5",
     md: "-mt-4 md:-mt-6",
     lg: "-mt-5 md:-mt-7",
     default: "-mt-5 md:-mt-6",
   };
-
   const currentSizeClass = sizeClasses[size] || sizeClasses.default;
   const currentTextClass = textClasses[size] || textClasses.default;
-  const currentTopMarginClass = topTextMarginClasses[size] || topTextMarginClasses.default;
-  const currentBottomMarginClass = bottomTextMarginClasses[size] || bottomTextMarginClasses.default;
+  const currentTopMarginClass =
+    topTextMarginClasses[size] || topTextMarginClasses.default;
+  const currentBottomMarginClass =
+    bottomTextMarginClasses[size] || bottomTextMarginClasses.default;
 
   return (
     <div className="w-fit">
-      <h2 className={`${currentTextClass} ${currentTopMarginClass} font-light text-gray-200 animate-pulse-soft px-2 text-left`}>
+      <h2
+        className={`${currentTextClass} ${currentTopMarginClass} font-light text-gray-200 animate-pulse-soft px-2 text-left`}
+      >
         Because music
       </h2>
       <div className={`relative w-full ${currentSizeClass} mx-auto`}>
@@ -66,7 +73,9 @@ export default function AnimatedLogo({ size = "default" }: AnimatedLogoProps) {
           />
         </div>
       </div>
-      <h2 className={`${currentTextClass} ${currentBottomMarginClass} font-light text-gray-200 animate-pulse-soft px-2 text-right`}>
+      <h2
+        className={`${currentTextClass} ${currentBottomMarginClass} font-light text-gray-200 animate-pulse-soft px-2 text-right`}
+      >
         is better together
       </h2>
     </div>

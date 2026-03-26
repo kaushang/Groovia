@@ -26,6 +26,9 @@ const io = new SocketIOServer(server, {
 // Connect DB
 connectDB();
 
+import { clerkWebhookRouter } from "./webhooks";
+app.use("/api/webhooks", clerkWebhookRouter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use("/covers", express.static(path.join(__dirname, "public/covers")));
