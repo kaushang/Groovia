@@ -113,7 +113,7 @@ export default function AuthPage() {
             {/* Left Tilted Album Cover */}
             <div className="absolute top-[35%] left-[22%] -translate-y-1/2 w-40 h-40 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 shadow-2xl backdrop-blur-md z-[15] transform -rotate-12 hover:-rotate-6 transition-transform duration-500 overflow-hidden">
               <img
-                src="../../public/images/For A Reason.jpg"
+                src="images/For A Reason.jpg"
                 alt="Album cover left"
                 className="absolute inset-0 w-full h-full object-cover z-0"
               />
@@ -123,7 +123,7 @@ export default function AuthPage() {
             {/* Right Tilted Album Cover */}
             <div className="absolute top-[45%] right-[15%] -translate-y-1/2 w-44 h-44 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-white/10 shadow-2xl backdrop-blur-md z-0 transform rotate-12 hover:rotate-6 transition-transform duration-500 overflow-hidden">
               <img
-                src="../../public/images/With You.jpg"
+                src="images/With You.jpg"
                 alt="Album cover right"
                 className="absolute inset-0 w-full h-full object-cover z-0"
               />
@@ -133,7 +133,7 @@ export default function AuthPage() {
             {/* Front Album Glass Cover */}
             <div className="absolute top-[55%] left-[50%] -translate-y-1/2 -translate-x-1/2 w-56 h-56 rounded-xl bg-gradient-to-br from-white/10 to-white/5 border border-white/20 shadow-[0_0_50px_rgba(168,85,247,0.3)] backdrop-blur-xl z-20 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform duration-500">
               <img
-                src="../../public/images/Thodi Si Daaru.jpg"
+                src="images/Thodi Si Daaru.jpg"
                 alt="Album cover front"
                 className="absolute inset-0 w-full h-full object-cover z-0"
               />
