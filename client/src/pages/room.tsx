@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { LogOut, Copy } from "lucide-react";
+import { LogOut, Copy, User, CircleUserRound } from "lucide-react";
 import JoinRoomModal from "@/components/modals/join-room-modal";
 import LeaveRoomModal from "@/components/modals/leave-room-modal";
 import SongSearch from "@/components/room components/song-search";
@@ -15,6 +15,9 @@ import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { io, Socket } from "socket.io-client";
+import { useUser } from "@clerk/clerk-react";
+import ProfilePage from "@/pages/profile";
+import MiniPlayerBar from "@/components/room components/mini-player-bar";
 
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -34,10 +37,22 @@ export default function Room() {
   const queryClient = useQueryClient();
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
+  const view = searchParams.get("view") || "room";
+  const { user } = useUser();
   const socketRef = useRef<Socket | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null); // State to pass to children
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playerRef = useRef<any>(null);
+
+  const toggleProfileView = () => {
+    const newParams = new URLSearchParams(searchParams);
+    if (view === "profile") {
+      newParams.delete("view");
+    } else {
+      newParams.set("view", "profile");
+    }
+    setLocation(`/room/${roomId}?${newParams.toString()}`);
+  };
 
   const lastEmitTimeRef = useRef(0);
   const lastActiveSongIdRef = useRef<string | null>(null);
@@ -841,22 +856,36 @@ export default function Room() {
           <div className="flex flex-col md:items-start md:text-left z-10 w-full md:w-auto">
             <div className="flex flex-row items-center justify-between gap-4 w-full md:w-auto mb-2 mt-2">
               <span
-                className="text-2xl md:text-2xl items-end md:text-center font-bold text-white tracking-tight ml-1 drop-shadow-lg"
+                className="text-xl font-bold text-white tracking-tight ml-1 drop-shadow-lg 
+             truncate min-w-0 flex-1"
                 data-testid="room-name"
               >
                 {room.name}
               </span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="md:hidden text-red-400 text-md h-fit w-fit mr-3 pt-1 hover:bg-transparent hover:text-red-400 [&_svg]:w-4 [&_svg]:h-4"
-                onClick={() => setShowLeaveDialog(true)}
-                disabled={leaveRoomMutation.isPending}
-                aria-label="Leave Room"
-              >
-                Leave
-                {/* <LogOut strokeWidth={3} /> */}
-              </Button>
+              {/* Mobile: profile avatar + leave button */}
+              <div className="flex md:hidden items-center gap-2 mr-1">
+                {user && (
+                  <button
+                    onClick={toggleProfileView}
+                    className="overflow-hidden hover:border-purple-400 transition-all cursor-pointer shrink-0 bg-white/10 rounded-full border border-white/20 px-2 text-white/90 flex items-center text-sm"
+                    title="View Profile"
+                  >
+                    <CircleUserRound size={16} className="mr-1" />
+                    <span className="py-1 text-sm">Profile</span>
+                  </button>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-red-400 bg-red-400/10 px-2 border border-red-400/20 rounded-full text-sm h-fit w-fit hover:bg-transparent hover:text-red-400 hover:border-red-400/50 [&_svg]:w-4 [&_svg]:h-4 underline-offset-4 flex items-center py-1"
+                  onClick={() => setShowLeaveDialog(true)}
+                  disabled={leaveRoomMutation.isPending}
+                  aria-label="Leave Room"
+                >
+                  <LogOut size={16} className="-mr-1" />
+                  Leave
+                </Button>
+              </div>
             </div>
 
             <div className="flex  justify-between text-sm font-medium px-1 py-1 text-gray-200 md:bg-transparent rounded-xl mb-1 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all md:hover:bg-transparent">
@@ -886,7 +915,6 @@ export default function Room() {
                   <Copy className="h-3 w-3" />
                 </Button>
               </div>
-
               <ListenerCountSheet
                 room={room}
                 userId={userId}
@@ -896,12 +924,22 @@ export default function Room() {
             </div>
           </div>
 
-          <div className="absolute top-0.5 right-0 md:static md:block z-20">
-            {/* Desktop Leave Button */}
-            <div className="hidden md:flex flex-wrap gap-3">
+          <div className="hidden md:flex items-center z-20">
+            {/* Desktop: Profile + Leave Room */}
+            <div className="flex items-center gap-3">
+              {user && (
+                <Button
+                  onClick={toggleProfileView}
+                  className="flex items-center gap-2 h-9 bg-white/10 border border-white/20 rounded-lg overflow-hidden hover:border-purple-400 transition-all cursor-pointer"
+                  title="View Profile"
+                >
+                  <CircleUserRound size={32} />
+                  <p className="text-white">Profile</p>
+                </Button>
+              )}
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 shadow-lg shadow-red-900/20 border-0"
+                className="bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 shadow-lg shadow-red-900/20 border border-red-100/30"
                 onClick={() => setShowLeaveDialog(true)}
                 disabled={leaveRoomMutation.isPending}
                 data-testid="button-leave-room"
@@ -910,15 +948,17 @@ export default function Room() {
                 {leaveRoomMutation.isPending ? "Leaving..." : "Leave Room"}
               </Button>
             </div>
-            <LeaveRoomModal
-              isOpen={showLeaveDialog}
-              onClose={() => setShowLeaveDialog(false)}
-              onConfirm={() => leaveRoomMutation.mutate()}
-              isLeaving={leaveRoomMutation.isPending}
-            />
           </div>
         </div>
       </div>
+
+      {/* Leave Room Modal — rendered at all breakpoints */}
+      <LeaveRoomModal
+        isOpen={showLeaveDialog}
+        onClose={() => setShowLeaveDialog(false)}
+        onConfirm={() => leaveRoomMutation.mutate()}
+        isLeaving={leaveRoomMutation.isPending}
+      />
 
       {/* Join Room Dialog */}
       <JoinRoomModal
@@ -929,7 +969,9 @@ export default function Room() {
       />
 
       {/* Three Column Layout - Adaptive Grid/Tabs */}
-      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_2fr_1fr] gap-2 lg:gap-2 lg:px-6 px-4 flex-1 min-h-0 lg:pb-6 relative w-full">
+      <div
+        className={`flex flex-col lg:grid lg:grid-cols-[1fr_2fr_1fr] gap-2 lg:gap-2 lg:px-6 px-4 flex-1 min-h-0 lg:pb-6 relative w-full ${view === "profile" ? "opacity-0 pointer-events-none absolute -translate-x-[200%]" : ""}`}
+      >
         {/* Search and Add Songs */}
         <SongSearch
           className={activeTab === "search" ? "flex" : "hidden lg:flex"}
@@ -1062,6 +1104,55 @@ export default function Room() {
         {/* Mobile Bottom Navigation */}
         <MobileNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
+
+      {view === "profile" && (
+        <div className="absolute inset-0 z-40 gradient-animated-bg overflow-y-auto pb-24">
+          <div className="absolute left-4 top-4 z-50 lg:left-[270px]">
+            <Button
+              variant="default"
+              onClick={toggleProfileView}
+              className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+            >
+              ← Back to Room
+            </Button>
+          </div>
+          <ProfilePage />
+        </div>
+      )}
+
+      {view === "profile" && activeSong && (
+        <MiniPlayerBar
+          activeSong={activeSong}
+          isPlaying={isPlaying}
+          isHost={isHost}
+          isLooping={isLooping}
+          currentTime={currentTime}
+          duration={duration}
+          handlePlayPause={handlePlayPause}
+          handleNext={handleNext}
+          handlePrevious={handlePrevious}
+          formatTime={formatTime}
+          onToggleLoop={(newState) => {
+            setIsLooping(newState);
+            const currentQueueItemId = activeSong?._id || activeSong?.id;
+            if (currentQueueItemId) {
+              localStorage.setItem(
+                "groovia_loop_state",
+                JSON.stringify({
+                  queueItemId: currentQueueItemId,
+                  isLooping: newState,
+                }),
+              );
+            }
+            if (socketRef.current) {
+              socketRef.current.emit("toggleLoop", {
+                roomId,
+                isLooping: newState,
+              });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
