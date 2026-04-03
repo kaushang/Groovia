@@ -877,7 +877,7 @@ export default function Room() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-red-400 bg-red-400/10 px-2 border border-red-400/20 rounded-full text-sm h-fit w-fit hover:bg-transparent hover:text-red-400 hover:border-red-400/50 [&_svg]:w-4 [&_svg]:h-4 underline-offset-4 flex items-center py-1"
+                  className="text-red-400 bg-red-400/10 px-2 border border-red-400/20 rounded-full text-sm h-fit w-fit hover:bg-red-400/10 hover:text-red-400 hover:border-red-400/60 [&_svg]:w-4 [&_svg]:h-4 underline-offset-4 flex items-center py-1"
                   onClick={() => setShowLeaveDialog(true)}
                   disabled={leaveRoomMutation.isPending}
                   aria-label="Leave Room"
@@ -939,7 +939,7 @@ export default function Room() {
               )}
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 shadow-lg shadow-red-900/20 border border-red-100/30"
+                className="text-red-400 bg-red-400/10 border border-red-400/20 hover:bg-red-400/10 hover:text-red-400 hover:border-red-400/60"
                 onClick={() => setShowLeaveDialog(true)}
                 disabled={leaveRoomMutation.isPending}
                 data-testid="button-leave-room"
@@ -1106,8 +1106,8 @@ export default function Room() {
       </div>
 
       {view === "profile" && (
-        <div className="absolute inset-0 z-40 gradient-animated-bg overflow-y-auto pb-24">
-          <div className="absolute left-4 top-4 z-50 lg:left-[270px]">
+        <div className="absolute inset-0 z-40 gradient-animated-bg overflow-hidden flex flex-col">
+          <div className="absolute right-4 top-4 z-50 lg:left-[270px] lg:right-auto">
             <Button
               variant="default"
               onClick={toggleProfileView}
@@ -1131,7 +1131,24 @@ export default function Room() {
           handlePlayPause={handlePlayPause}
           handleNext={handleNext}
           handlePrevious={handlePrevious}
+          handleSeek={handleSeek}
           formatTime={formatTime}
+          isLoopingRange={isLoopingRange}
+          loopStart={loopStart}
+          loopEnd={loopEnd}
+          onUpdateLoopRange={(start, end, isActive) => {
+            setLoopStart(start);
+            setLoopEnd(end);
+            setIsLoopingRange(isActive);
+            if (socketRef.current) {
+              socketRef.current.emit("updateLoopRange", {
+                roomId,
+                loopStart: start,
+                loopEnd: end,
+                isLoopingRange: isActive,
+              });
+            }
+          }}
           onToggleLoop={(newState) => {
             setIsLooping(newState);
             const currentQueueItemId = activeSong?._id || activeSong?.id;

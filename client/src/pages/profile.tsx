@@ -276,12 +276,12 @@ export default function ProfilePage() {
       )}
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 py-5 lg:py-10 px-6 md:px-12 overflow-y-auto">
+      <main className="flex-1 py-5 lg:py-10 px-6 md:px-12 overflow-y-auto pb-32">
         {/* Mobile header bar */}
         <div className="flex items-center justify-between mb-4 lg:hidden">
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors border"
           >
             <Menu className="w-5 h-5" />
           </button>

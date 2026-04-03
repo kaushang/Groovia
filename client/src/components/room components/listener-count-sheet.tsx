@@ -79,7 +79,7 @@ export default function ListenerCountSheet({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button className="flex items-center hover:text-white transition-colors group outline-none px-2 border border-white/20 rounded-full bg-white/10">
+        <button className="flex items-center transition-colors group outline-none px-2 border border-white/20 rounded-full bg-white/10 hover:border-purple-400">
           <Users className="w-3.5 h-3.5 mr-1 text-purple-300" />
           <span className="flex items-center py-1 decoration-white/30 underline-offset-4">
             {listenerCount} <span className="md:inline ml-1">Listeners</span>
