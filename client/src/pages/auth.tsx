@@ -39,7 +39,7 @@ export default function AuthPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        setLocation("/");
+        setLocation("/profile");
       } else {
         console.log(result);
       }

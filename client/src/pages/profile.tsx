@@ -14,11 +14,12 @@ import {
   HelpCircle,
   Info,
   Menu,
-  X,
-  ChevronLeft,
-  ChevronRight,
   ListMusic,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import CreateRoomModal from "@/components/modals/create-room-modal";
@@ -69,8 +70,7 @@ export default function ProfilePage() {
   const [, setLocation] = useLocation();
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   const [isJoinRoomOpen, setIsJoinRoomOpen] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const { data: favoriteSongs, isLoading: isFetchingFavorites } = useQuery({
     queryKey: ["favorites"],
@@ -110,12 +110,12 @@ export default function ProfilePage() {
     setLocation("/");
   };
 
-  // Full sidebar content (used for mobile overlay — always expanded)
+  // Full sidebar content
   const SidebarContent = ({ collapsed = false }: { collapsed?: boolean }) => (
     <div className="flex flex-col h-fit w-fit">
       {/* Logo */}
       <div
-        className={`flex items-center py-4 mb-2 overflow-hidden ${collapsed ? "justify-center px-2" : "justify-center px-4"}`}
+        className={`flex items-center pb-4 mb-2 overflow-hidden ${collapsed ? "justify-center px-2" : "justify-center px-4"}`}
       >
         {collapsed ? (
           <img
@@ -143,7 +143,7 @@ export default function ProfilePage() {
           label="Create Room"
           onClick={() => {
             setIsCreateRoomOpen(true);
-            setIsMobileSidebarOpen(false);
+            setIsSidebarOpen(false);
           }}
         />
         <SidebarItem
@@ -152,7 +152,7 @@ export default function ProfilePage() {
           label="Join Room"
           onClick={() => {
             setIsJoinRoomOpen(true);
-            setIsMobileSidebarOpen(false);
+            setIsSidebarOpen(false);
           }}
         />
 
@@ -163,15 +163,6 @@ export default function ProfilePage() {
             Navigation
           </p>
         )}
-        <SidebarItem
-          collapsed={collapsed}
-          icon={Home}
-          label="Home"
-          onClick={() => {
-            setLocation("/");
-            setIsMobileSidebarOpen(false);
-          }}
-        />
         <SidebarItem
           collapsed={collapsed}
           icon={Users}
@@ -222,71 +213,31 @@ export default function ProfilePage() {
           onClick={handleLogout}
           variant="danger"
         />
-        {/* Collapse toggle — desktop only */}
-        <button
-          onClick={() => setIsSidebarCollapsed((c) => !c)}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className={`hidden lg:flex items-center mt-2 rounded-xl px-3 py-2.5 text-gray-500 hover:text-white hover:bg-white/10 transition-all duration-200 text-xs font-medium gap-2
-            ${collapsed ? "justify-center" : ""}`}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4 shrink-0" />
-          ) : (
-            <>
-              <ChevronLeft className="w-4 h-4 shrink-0" />
-              <span>Collapse</span>
-            </>
-          )}
-        </button>
       </div>
     </div>
   );
 
   return (
     <div className="min-h-screen flex text-white">
-      {/* ── DESKTOP SIDEBAR ── */}
-      <aside
-        className={`hidden lg:flex flex-col shrink-0 border-r border-white/10 bg-black/40 backdrop-blur-xl sticky top-0 h-screen overflow-y-auto transition-all duration-300 ease-in-out
-          ${isSidebarCollapsed ? "w-[68px]" : "w-64"}`}
-      >
-        <SidebarContent collapsed={isSidebarCollapsed} />
-      </aside>
-
-      {/* ── MOBILE SIDEBAR OVERLAY ── */}
-      {isMobileSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        >
-          <aside
-            className="absolute left-0 top-0 h-full w-56 bg-black/60 backdrop-blur-xl border-r border-white/10 overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-end p-3">
-              <button
-                onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-1 text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* ── SIDEBAR OVERLAY ── */}
+      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+        <SheetContent side="left" className="lg:w-[280px] w-[240px] sm:max-w-md border-r border-white/10 bg-black/40 backdrop-blur-xl text-white p-0 shadow-2xl">
+          <div className="h-full overflow-y-auto py-5">
             <SidebarContent collapsed={false} />
-          </aside>
-        </div>
-      )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 py-5 lg:py-10 px-6 md:px-12 overflow-y-auto pb-32">
-        {/* Mobile header bar */}
-        <div className="flex items-center justify-between mb-4 lg:hidden">
+        {/* Header bar */}
+        <div className="flex items-center justify-between mb-8">
           <button
-            onClick={() => setIsMobileSidebarOpen(true)}
-            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors border"
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors border border-white/20"
           >
             <Menu className="w-5 h-5" />
           </button>
-          {/* <span className="text-sm font-semibold text-gray-400">Profile</span>
-          <div className="w-9" /> */}
         </div>
 
         <div className="max-w-4xl mx-auto flex flex-col gap-12">

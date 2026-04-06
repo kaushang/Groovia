@@ -888,7 +888,7 @@ export default function Room() {
               </div>
             </div>
 
-            <div className="flex  justify-between text-sm font-medium px-1 py-1 text-gray-200 md:bg-transparent rounded-xl mb-1 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all md:hover:bg-transparent">
+            <div className="flex justify-between text-sm font-medium px-1 py-1 text-gray-200 md:bg-transparent rounded-xl mb-1 md:p-0 backdrop-blur-md md:backdrop-blur-none md:border-none shadow-sm md:shadow-none transition-all md:hover:bg-transparent">
               <div className="flex items-center flex-row mr-2">
                 <span className="text-gray-400 mr-2 text-sm uppercase tracking-wider">
                   Room Code:

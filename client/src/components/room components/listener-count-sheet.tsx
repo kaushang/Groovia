@@ -86,12 +86,12 @@ export default function ListenerCountSheet({
           </span>
         </button>
       </SheetTrigger>
-      <SheetContent className="w-3/4 sm:max-w-md border-l border-white/10 bg-black/10 backdrop-blur-xl text-white p-0 shadow-2xl">
+      <SheetContent className="w-3/4 sm:max-w-md border-l border-white/10 bg-black/40 backdrop-blur-xl text-white p-0 shadow-2xl">
         <SheetHeader className="p-4 border-b border-white/10">
-          <SheetTitle className="text-2xl font-bold text-white flex items-center gap-2 mt-4 -mb-1">
+          <SheetTitle className="text-xl font-bold text-white flex items-center gap-2 mt-4">
             Room Members
           </SheetTitle>
-          <SheetDescription className="text-gray-400 -mt-2">
+          <SheetDescription className="text-gray-400 mt-2">
             See who's vibing in the room right now.
           </SheetDescription>
         </SheetHeader>

@@ -29,7 +29,7 @@ export default function VerifySignup() {
       
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        setLocation("/");
+        setLocation("/profile");
         toast({ title: "Success", description: "Account created and verified!", variant: "default" });
       } else {
         console.log(result);
