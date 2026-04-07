@@ -101,7 +101,7 @@ export default function DoubleMarquee({
     };
 
     return (
-        <div ref={containerRef} className="flex flex-col min-w-0 overflow-hidden w-full">
+        <div ref={containerRef} className="relative flex flex-col min-w-0 overflow-hidden w-full">
             {/* Hidden measurement spans */}
             <div className="absolute opacity-0 pointer-events-none whitespace-nowrap" aria-hidden="true">
                 <span ref={text1Ref} className={className1}>{text1}</span>

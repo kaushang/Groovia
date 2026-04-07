@@ -1,78 +1,38 @@
 import { useState } from "react";
-import { useUser, useClerk, useAuth } from "@clerk/clerk-react";
-import { Button } from "@/components/ui/button";
-import AnimatedLogo from "@/components/animated-logo";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import { useLocation } from "wouter";
-import {
-  Loader2,
-  Users,
-  LogOut,
-  Home,
-  Plus,
-  DoorOpen,
-  Settings,
-  HelpCircle,
-  Info,
-  Menu,
-  ListMusic,
-} from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import CreateRoomModal from "@/components/modals/create-room-modal";
-import JoinRoomModal from "@/components/modals/join-room-modal";
+import AppLayout from "@/components/layout/app-layout";
+import { Loader2, Heart, Music2, Users, Clock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Sidebar nav item
-function SidebarItem({
-  icon: Icon,
-  label,
-  onClick,
-  variant = "default",
-  collapsed = false,
-}: {
-  icon: any;
-  label: string;
-  onClick: () => void;
-  variant?: "default" | "danger";
-  collapsed?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={collapsed ? label : undefined}
-      className={`flex items-center w-full rounded-xl text-sm font-medium transition-all duration-200 group
-        ${collapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-3"}
-        ${
-          variant === "danger"
-            ? "text-red-400 hover:bg-red-500/15 hover:text-red-300"
-            : "text-gray-300 hover:bg-white/10 hover:text-white"
-        }`}
-    >
-      <Icon
-        className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
-          variant === "danger"
-            ? "text-red-500"
-            : "text-gray-400 group-hover:text-purple-400"
-        }`}
-      />
-      {!collapsed && <span className="truncate">{label}</span>}
-    </button>
-  );
+const formatTime = (ms: number) => {
+  const s = ms / 1000;
+  return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+};
+
+// Derive top artists from the favorites list
+function getTopArtists(songs: any[]): { name: string; count: number }[] {
+  const counts: Record<string, number> = {};
+  songs.forEach((song) => {
+    const artists = Array.isArray(song.artists) ? song.artists : [song.artists];
+    artists.forEach((a: string) => {
+      counts[a] = (counts[a] ?? 0) + 1;
+    });
+  });
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 }
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
-  const { signOut } = useClerk();
   const [, setLocation] = useLocation();
-  const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
-  const [isJoinRoomOpen, setIsJoinRoomOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const { data: favoriteSongs, isLoading: isFetchingFavorites } = useQuery({
+  const { data: favoriteSongs = [], isLoading: isFetchingFavorites } = useQuery({
     queryKey: ["favorites"],
     queryFn: async () => {
       const token = await getToken();
@@ -85,17 +45,10 @@ export default function ProfilePage() {
     enabled: !!user,
   });
 
-  const formatTime = (ms: number) => {
-    const s = ms / 1000;
-    return `${Math.floor(s / 60)}:${Math.floor(s % 60)
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
       </div>
     );
   }
@@ -105,264 +58,208 @@ export default function ProfilePage() {
     return null;
   }
 
-  const handleLogout = async () => {
-    await signOut();
-    setLocation("/");
-  };
+  const topArtists = getTopArtists(favoriteSongs);
 
-  // Full sidebar content
-  const SidebarContent = ({ collapsed = false }: { collapsed?: boolean }) => (
-    <div className="flex flex-col h-fit w-fit">
-      {/* Logo */}
-      <div
-        className={`flex items-center pb-4 mb-2 overflow-hidden ${collapsed ? "justify-center px-2" : "justify-center px-4"}`}
-      >
-        {collapsed ? (
-          <img
-            src="/groovia_icon.avif"
-            alt="Groovia"
-            className="w-8 h-8 animate-spin-slow"
-          />
-        ) : (
-          <AnimatedLogo size="xs" />
-        )}
-      </div>
+  const joinDate = user.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
-      <div className="h-px bg-white/10 mx-3 mb-4" />
-
-      {/* Navigation */}
-      <nav className="flex flex-col gap-1 px-2 flex-1">
-        {!collapsed && (
-          <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest px-3 mb-1">
-            Rooms
-          </p>
-        )}
-        <SidebarItem
-          collapsed={collapsed}
-          icon={Plus}
-          label="Create Room"
-          onClick={() => {
-            setIsCreateRoomOpen(true);
-            setIsSidebarOpen(false);
-          }}
-        />
-        <SidebarItem
-          collapsed={collapsed}
-          icon={DoorOpen}
-          label="Join Room"
-          onClick={() => {
-            setIsJoinRoomOpen(true);
-            setIsSidebarOpen(false);
-          }}
-        />
-
-        <div className="h-px bg-white/10 mx-2 my-3" />
-
-        {!collapsed && (
-          <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest px-3 mb-1">
-            Navigation
-          </p>
-        )}
-        <SidebarItem
-          collapsed={collapsed}
-          icon={Users}
-          label="Find Friends"
-          onClick={() => {}}
-        />
-        <SidebarItem
-          collapsed={collapsed}
-          icon={ListMusic}
-          label="Playlists"
-          onClick={() => {}}
-        />
-
-        <div className="h-px bg-white/10 mx-2 my-3" />
-
-        {!collapsed && (
-          <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest px-3 mb-1">
-            Account
-          </p>
-        )}
-        <SidebarItem
-          collapsed={collapsed}
-          icon={Settings}
-          label="Settings"
-          onClick={() => {}}
-        />
-        <SidebarItem
-          collapsed={collapsed}
-          icon={HelpCircle}
-          label="Help & Support"
-          onClick={() => {}}
-        />
-        <SidebarItem
-          collapsed={collapsed}
-          icon={Info}
-          label="About Groovia"
-          onClick={() => {}}
-        />
-      </nav>
-
-      {/* Bottom Actions */}
-      <div className="flex flex-col gap-1 px-2 pb-4">
-        <div className="h-px bg-white/10 mx-2 mb-3" />
-        <SidebarItem
-          collapsed={collapsed}
-          icon={LogOut}
-          label="Sign Out"
-          onClick={handleLogout}
-          variant="danger"
-        />
-      </div>
-    </div>
-  );
+  const displayName =
+    user.username ||
+    `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
+    "Groovia User";
 
   return (
-    <div className="min-h-screen flex text-white">
-      {/* ── SIDEBAR OVERLAY ── */}
-      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-        <SheetContent side="left" className="lg:w-[280px] w-[240px] sm:max-w-md border-r border-white/10 bg-black/40 backdrop-blur-xl text-white p-0 shadow-2xl">
-          <div className="h-full overflow-y-auto py-5">
-            <SidebarContent collapsed={false} />
-          </div>
-        </SheetContent>
-      </Sheet>
+    <AppLayout activePage="profile">
+      <div className="max-w-2xl mx-auto px-5 md:px-10 py-8 pb-32 flex flex-col gap-8">
 
-      {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 py-5 lg:py-10 px-6 md:px-12 overflow-y-auto pb-32">
-        {/* Header bar */}
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors border border-white/20"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="max-w-4xl mx-auto flex flex-col gap-12">
-          {/* ── PROFILE HEADER ── */}
-          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-5 pb-8 border-b border-white/[0.07]">
+        {/* ── Profile Header ── */}
+        <section className="flex items-center gap-5">
+          <div className="relative shrink-0">
             <img
               src={user.imageUrl}
-              alt="Profile"
-              className="w-[72px] h-[72px] rounded-full object-cover shrink-0"
+              alt={displayName}
+              className="w-20 h-20 rounded-full object-cover ring-2 ring-white/10"
             />
-            <div className="flex-1">
-              <h1 className="text-xl font-semibold text-white lg:text-left text-center">
-                {user.username ||
-                  `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
-                  "Groovia User"}
-              </h1>
-              <div className="flex items-center gap-6 mt-3">
-                <span className="text-sm text-white font-medium">
-                  {favoriteSongs?.length ?? 0}{" "}
-                  <span className="text-gray-500 font-normal">favorites</span>
-                </span>
-                <span className="text-sm text-white font-medium">
-                  0 <span className="text-gray-500 font-normal">friends</span>
-                </span>
-                <span className="text-sm text-white font-medium">
-                  0 <span className="text-gray-500 font-normal">playlists</span>
-                </span>
-              </div>
-            </div>
           </div>
 
-          {/* ── FAVORITE SONGS ── */}
-          <section>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold text-white uppercase tracking-widest">
-                Favorite Songs
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-white truncate">{displayName}</h1>
+            {user.primaryEmailAddress && (
+              <p className="text-sm text-gray-500 truncate mt-0.5">
+                {user.primaryEmailAddress.emailAddress}
+              </p>
+            )}
+            {joinDate && (
+              <p className="text-xs text-gray-600 mt-1">Member since {joinDate}</p>
+            )}
+          </div>
+        </section>
+
+        {/* ── Stats Row ── */}
+        <section className="grid grid-cols-3 gap-3">
+          <StatCard
+            icon={Heart}
+            label="Favorites"
+            value={favoriteSongs.length}
+            loading={isFetchingFavorites}
+          />
+          <StatCard icon={Music2} label="Playlists" value={0} />
+          <StatCard icon={Users} label="Friends" value={0} />
+        </section>
+
+        {/* ── Tabs ── */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="bg-white/[0.06] border border-white/[0.08] rounded-lg h-9 p-1 w-full">
+            <TabsTrigger
+              value="overview"
+              className="flex-1 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-500 rounded-md transition-all"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="favorites"
+              className="flex-1 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-500 rounded-md transition-all"
+            >
+              Favorites
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="mt-5 flex flex-col gap-6">
+            {/* Top Artists */}
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+                Your Top Artists
               </h2>
-              {favoriteSongs && favoriteSongs.length > 0 && (
-                <span className="text-xs text-gray-600">
-                  {favoriteSongs.length} tracks
-                </span>
+              {isFetchingFavorites ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
+                </div>
+              ) : topArtists.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  {topArtists.map((artist, index) => (
+                    <div
+                      key={artist.name}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors"
+                    >
+                      <span className="text-xs text-gray-600 w-4 text-right shrink-0">
+                        {index + 1}
+                      </span>
+                      <div className="w-8 h-8 rounded-full bg-white/[0.08] border border-white/10 flex items-center justify-center shrink-0">
+                        <Music2 className="w-4 h-4 text-gray-500" />
+                      </div>
+                      <p className="flex-1 text-sm font-medium text-gray-200 truncate">
+                        {artist.name}
+                      </p>
+                      <span className="text-xs text-gray-600 shrink-0">
+                        {artist.count} {artist.count === 1 ? "track" : "tracks"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  message="No top artists yet"
+                  sub="Songs you favorite will appear here."
+                />
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Favorites Tab */}
+          <TabsContent value="favorites" className="mt-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                Liked Songs
+              </h2>
+              {favoriteSongs.length > 0 && !isFetchingFavorites && (
+                <span className="text-xs text-gray-600">{favoriteSongs.length} tracks</span>
               )}
             </div>
 
             {isFetchingFavorites ? (
-              <div className="flex justify-center py-20">
+              <div className="flex justify-center py-14">
                 <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
               </div>
-            ) : favoriteSongs && favoriteSongs.length > 0 ? (
-              <div className="flex flex-col">
+            ) : favoriteSongs.length > 0 ? (
+              <div className="flex flex-col gap-0.5">
                 {favoriteSongs.map((song: any, index: number) => (
-                  <div
-                    key={song.id || song._id}
-                    className="flex items-center gap-4 py-3 px-2 rounded-lg hover:bg-white/[0.04] transition-colors group -mx-2"
-                  >
-                    <span className="text-xs text-white-700 w-4 text-right shrink-0">
-                      {index + 1}
-                    </span>
-                    <img
-                      src={song.image}
-                      alt={song.name}
-                      className="w-9 h-9 rounded object-cover shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{song.name}</p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">
-                        {Array.isArray(song.artists)
-                          ? song.artists.join(", ")
-                          : song.artists}
-                      </p>
-                    </div>
-                    <span className="text-xs text-gray-600 shrink-0 tabular-nums">
-                      {formatTime(song.duration)}
-                    </span>
-                  </div>
+                  <FavoriteSongRow key={song.id || song._id} song={song} index={index} />
                 ))}
               </div>
             ) : (
-              <div className="py-16 text-center rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                <p className="text-sm text-gray-500">No favorites yet</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  Right-click any song in a room and hit "Add to favorites"
-                </p>
-              </div>
+              <EmptyState
+                message="No favorites yet"
+                sub='Right-click any song in a room or on the home page and hit "Add to favorites".'
+              />
             )}
-          </section>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+}
 
-          {/* ── FRIENDS & PLAYLISTS ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <section>
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-sm font-semibold text-white uppercase tracking-widest">
-                  Friends
-                </h2>
-                <span className="text-xs text-gray-600">0</span>
-              </div>
-              <div className="py-14 text-center rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                <p className="text-sm text-gray-500">No friends added</p>
-              </div>
-            </section>
+// ── Sub-components ───────────────────────────────────────────
 
-            <section>
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-sm font-semibold text-white uppercase tracking-widest">
-                  Playlists
-                </h2>
-                <span className="text-xs text-gray-600">0</span>
-              </div>
-              <div className="py-14 text-center rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                <p className="text-sm text-gray-500">No playlists yet</p>
-              </div>
-            </section>
-          </div>
-        </div>
-      </main>
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  loading = false,
+}: {
+  icon: any;
+  label: string;
+  value: number;
+  loading?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1.5 py-4 px-3 rounded-xl bg-white/[0.04] border border-white/[0.07]">
+      <Icon className="w-4 h-4 text-gray-500" />
+      {loading ? (
+        <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
+      ) : (
+        <span className="text-xl font-bold text-white">{value}</span>
+      )}
+      <span className="text-[11px] text-gray-600 uppercase tracking-wide">{label}</span>
+    </div>
+  );
+}
 
-      {/* Modals */}
-      <CreateRoomModal
-        isOpen={isCreateRoomOpen}
-        onClose={() => setIsCreateRoomOpen(false)}
+function FavoriteSongRow({ song, index }: { song: any; index: number }) {
+  const artistsStr = Array.isArray(song.artists)
+    ? song.artists.join(", ")
+    : song.artists;
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
+      <span className="text-xs text-gray-600 w-4 text-right shrink-0">{index + 1}</span>
+      <img
+        src={song.image || song.cover}
+        alt={song.name || song.title}
+        className="w-9 h-9 rounded object-cover shrink-0"
       />
-      <JoinRoomModal
-        isOpen={isJoinRoomOpen}
-        onClose={() => setIsJoinRoomOpen(false)}
-      />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-white truncate">{song.name || song.title}</p>
+        <p className="text-xs text-gray-500 truncate mt-0.5">{artistsStr}</p>
+      </div>
+      <span className="text-xs text-gray-600 shrink-0 tabular-nums flex items-center gap-1">
+        <Clock className="w-3 h-3" />
+        {formatTime(song.duration)}
+      </span>
+    </div>
+  );
+}
+
+function EmptyState({ message, sub }: { message: string; sub: string }) {
+  return (
+    <div className="flex flex-col items-center py-16 text-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+      <p className="text-sm text-gray-500">{message}</p>
+      <p className="text-xs text-gray-600 max-w-xs leading-relaxed">{sub}</p>
     </div>
   );
 }

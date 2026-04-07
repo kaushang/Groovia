@@ -5,10 +5,10 @@ import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, X, Loader2, Plus } from "lucide-react";
+import { Search, X, Loader2, Play } from "lucide-react";
 import GlassPanel from "@/components/glass-panel";
 import DoubleMarquee from "@/components/double-marquee";
-import YoutubeVersionsModal from "./youtube-versions-modal";
+import YoutubeVersionsModal from "./room components/youtube-versions-modal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   ContextMenu,
@@ -19,19 +19,30 @@ import {
 
 interface SongSearchProps {
   className?: string;
-  addToQueueMutation: any;
+  onAction: (payload: { song: any; youtubeVersion?: any }) => void;
+  isActionPending?: (songId: string) => boolean;
+  actionIcon?: React.ReactNode;
+  actionTitle?: string;
   formatTime: (time: number) => string;
+  title?: string;
+  hideHeader?: boolean;
+  asGlassPanel?: boolean;
 }
 
 export default function SongSearch({
-  className,
-  addToQueueMutation,
+  className = "",
+  onAction,
+  isActionPending = () => false,
+  actionIcon = <Play className="w-5 h-5 ml-0.5 text-white" fill="currentColor" />,
+  actionTitle = "Play",
   formatTime,
+  title = "Search Songs",
+  hideHeader = false,
+  asGlassPanel = true,
 }: SongSearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-  const [selectedSongForVersions, setSelectedSongForVersions] =
-    useState<any>(null);
+  const [selectedSongForVersions, setSelectedSongForVersions] = useState<any>(null);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
   const isMobile = useIsMobile();
   const { getToken } = useAuth();
@@ -108,21 +119,26 @@ export default function SongSearch({
   };
 
   const handleSelectVersion = (youtubeItem: any) => {
-    addToQueueMutation.mutate({
+    onAction({
       song: selectedSongForVersions,
       youtubeVersion: youtubeItem,
     });
     setIsVersionModalOpen(false);
   };
 
+  const Container = asGlassPanel ? GlassPanel : "div";
+  const containerClasses = asGlassPanel 
+    ? `p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col ${className}`
+    : `flex flex-col w-full ${className}`;
+
   return (
-    <GlassPanel
-      className={`p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col ${className}`}
-    >
-      <h2 className="text-2xl font-bold mb-4 flex items-center justify-center text-white">
-        <Search className="w-6 h-6 mr-3 text-purple-300" />
-        Add Songs
-      </h2>
+    <Container className={containerClasses}>
+      {!hideHeader && (
+        <h2 className="text-2xl font-bold mb-4 flex items-center justify-center text-white">
+          <Search className="w-6 h-6 mr-3 text-purple-300" />
+          {title}
+        </h2>
+      )}
 
       <div className="relative space-y-2 mb-4">
         <Input
@@ -130,13 +146,13 @@ export default function SongSearch({
           placeholder="Search for songs, artists, albums..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-2 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400"
+          className="pl-3 bg-white/10 border-white/20 text-white placeholder:text-gray-300 focus:ring-2 focus:ring-purple-400 h-11 rounded-xl"
           data-testid="input-search-songs"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery("")}
-            className="absolute right-2 top-1/2 -translate-y-4 text-white hover:text-white/60 transition-colors"
+            className="absolute right-3 top-1/3 -translate-y-1/2 text-white hover:text-white/60 transition-colors"
             title="Clear search"
           >
             <X className="w-5 h-5" />
@@ -145,17 +161,14 @@ export default function SongSearch({
       </div>
 
       {/* Search Results */}
-      <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
-        {isSearching ||
-        (searchQuery !== debouncedQuery && searchQuery.length > 0) ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex items-center gap-2 py-1">
-              <img
-                src="/groovia_icon.avif"
-                alt=""
-                className="w-10 h-10 animate-spin-reverse-slow"
-              />
-            </div>
+      <div className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+        {isSearching || (searchQuery !== debouncedQuery && searchQuery.length > 0) ? (
+          <div className="flex justify-center items-center py-12">
+            <img
+              src="/groovia_icon.avif"
+              alt=""
+              className="w-10 h-10 animate-spin-reverse-slow"
+            />
           </div>
         ) : searchResults.length > 0 ? (
           <>
@@ -165,7 +178,10 @@ export default function SongSearch({
                 song={song}
                 isMobile={isMobile}
                 handleOpenVersions={handleOpenVersions}
-                addToQueueMutation={addToQueueMutation}
+                onAction={onAction}
+                isActionPending={isActionPending(song.id)}
+                actionIcon={actionIcon}
+                actionTitle={actionTitle}
                 addToFavoritesMutation={addToFavoritesMutation}
                 formatTime={formatTime}
               />
@@ -174,7 +190,7 @@ export default function SongSearch({
             {hasNextPage && (
               <div
                 onClick={() => fetchNextPage()}
-                className="text-center pt-2 mr-1 mx-auto cursor-pointer text-sm transition-colors border-t border-white/10 mt-2"
+                className="text-center py-3 mx-auto cursor-pointer text-sm transition-colors border-t border-white/10 mt-2 hover:bg-white/[0.02]"
               >
                 {isFetchingNextPage ? (
                   <div className="flex items-center justify-center gap-2">
@@ -183,23 +199,31 @@ export default function SongSearch({
                       alt=""
                       className="w-4 h-4 animate-spin-reverse-slow"
                     />
-                    <span className="text-sm text-white/80">
-                      Loading more...
-                    </span>
+                    <span className="text-sm text-white/80">Loading more...</span>
                   </div>
                 ) : (
-                  <span className="text-white/80 text-sm underline">
-                    more results
-                  </span>
+                  <span className="text-white/80 text-sm hover:text-white">Show more results</span>
                 )}
               </div>
             )}
           </>
         ) : debouncedQuery.length > 0 ? (
           <div className="h-full flex items-center justify-center min-h-[200px]">
-            <p className="text-gray-400">No results found</p>
+            <p className="text-gray-400">No results found for "{debouncedQuery}"</p>
           </div>
-        ) : null}
+        ) : (
+          !asGlassPanel && (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center mb-2">
+                <Search className="w-6 h-6 text-gray-600" />
+              </div>
+              <p className="text-base font-medium text-gray-400">Search for a song to play</p>
+              <p className="text-sm text-gray-600 max-w-xs">
+                Find any track, artist, or album.
+              </p>
+            </div>
+          )
+        )}
       </div>
 
       <YoutubeVersionsModal
@@ -209,7 +233,7 @@ export default function SongSearch({
         onSelect={handleSelectVersion}
         formatTime={formatTime}
       />
-    </GlassPanel>
+    </Container>
   );
 }
 
@@ -217,20 +241,26 @@ function SongItem({
   song,
   isMobile,
   handleOpenVersions,
-  addToQueueMutation,
+  onAction,
+  isActionPending,
+  actionIcon,
+  actionTitle,
   addToFavoritesMutation,
   formatTime,
 }: {
   song: any;
   isMobile: boolean;
   handleOpenVersions: (song: any) => void;
-  addToQueueMutation: any;
+  onAction: (payload: { song: any; youtubeVersion?: any }) => void;
+  isActionPending: boolean;
+  actionIcon: React.ReactNode;
+  actionTitle: string;
   addToFavoritesMutation: any;
   formatTime: (time: number) => string;
 }) {
   return (
     <div
-      className="flex items-center p-2 mr-1 rounded-sm hover:bg-white/10 transition-all group cursor-default outline-none"
+      className="flex items-center p-2 rounded-lg hover:bg-white/10 transition-all group cursor-default outline-none"
       data-testid={`search-result-${song.id}`}
     >
       <ContextMenu>
@@ -239,16 +269,12 @@ function SongItem({
             <img
               src={song.image}
               alt={`${song.name} artwork`}
-              className="w-12 h-12 rounded-sm object-cover mr-2"
+              className="w-12 h-12 rounded-sm object-cover mr-2 shrink-0"
             />
             <div className="flex-1 min-w-0 mr-2">
               <DoubleMarquee
                 text1={song.name}
-                text2={
-                  Array.isArray(song.artists)
-                    ? song.artists.join(", ")
-                    : song.artists
-                }
+                text2={Array.isArray(song.artists) ? song.artists.join(", ") : song.artists}
                 className1="font-semibold text-sm text-white"
                 className2="text-gray-400 text-xs"
               />
@@ -271,30 +297,26 @@ function SongItem({
         </ContextMenuContent>
       </ContextMenu>
 
-      <div className="text-gray-400 text-xs mr-2">
+      <div className="text-gray-400 text-xs mr-3 tabular-nums shrink-0">
         {formatTime(song.duration / 1000)}
       </div>
-      <div className="flex items-center gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
         <Button
           variant="ghost"
           onClick={(e) => {
             e.stopPropagation();
-            addToQueueMutation.mutate({ song });
+            onAction({ song });
           }}
           onPointerDown={(e) => e.stopPropagation()}
-          disabled={
-            addToQueueMutation.isPending &&
-            addToQueueMutation.variables?.song?.id === song.id
-          }
-          className="h-8 w-8 md:h-9 md:w-9 hover:bg-purple transition-opacity bg-purple-600 rounded-full"
-          data-testid={`button-add-song-${song.id}`}
-          title="Add to queue"
+          disabled={isActionPending}
+          className="h-9 w-9 hover:bg-purple-500 transition-opacity bg-purple-600 rounded-full flex items-center justify-center p-0"
+          data-testid={`button-action-song-${song.id}`}
+          title={actionTitle}
         >
-          {addToQueueMutation.isPending &&
-          addToQueueMutation.variables?.song?.id === song.id ? (
-            <Loader2 className="w-5 h-5 text-white animate-spin" />
+          {isActionPending ? (
+            <Loader2 className="w-4 h-4 text-white animate-spin" />
           ) : (
-            <Plus className="w-6 h-6 text-white" strokeWidth={4} />
+            actionIcon
           )}
         </Button>
       </div>

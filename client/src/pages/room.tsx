@@ -3,10 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { LogOut, Copy, User, CircleUserRound } from "lucide-react";
+import { LogOut, Copy, User, CircleUserRound, Plus } from "lucide-react";
 import JoinRoomModal from "@/components/modals/join-room-modal";
 import LeaveRoomModal from "@/components/modals/leave-room-modal";
-import SongSearch from "@/components/room components/song-search";
+import SongSearch from "@/components/song-search";
 import Player from "@/components/room components/room-player";
 import QueueList from "@/components/room components/queue-list";
 import MobileNavigation from "@/components/room components/mobile-navigation";
@@ -18,6 +18,7 @@ import { io, Socket } from "socket.io-client";
 import { useUser } from "@clerk/clerk-react";
 import ProfilePage from "@/pages/profile";
 import MiniPlayerBar from "@/components/room components/mini-player-bar";
+import { useGlobalPlayer } from "@/components/global-player-provider";
 
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -73,6 +74,14 @@ export default function Room() {
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
+
+  // Register this room in the global player context and stop any solo playback
+  const { clearPlayer, setActiveRoomId } = useGlobalPlayer();
+  useEffect(() => {
+    if (!roomId) return;
+    clearPlayer(); // stop solo music when entering a room
+    setActiveRoomId(roomId);
+  }, [roomId]);
 
   // Check if we need to show join dialog
   useEffect(() => {
@@ -585,6 +594,7 @@ export default function Room() {
         title: "Left room",
         description: "You have successfully left the room",
       });
+      setActiveRoomId(null);
       setLocation("/");
     },
     onError: (error) => {
@@ -975,7 +985,16 @@ export default function Room() {
         {/* Search and Add Songs */}
         <SongSearch
           className={activeTab === "search" ? "flex" : "hidden lg:flex"}
-          addToQueueMutation={addToQueueMutation}
+          onAction={({ song, youtubeVersion }) =>
+            addToQueueMutation.mutate({ song, youtubeVersion })
+          }
+          isActionPending={(songId) =>
+            addToQueueMutation.isPending &&
+            addToQueueMutation.variables?.song?.id === songId
+          }
+          actionIcon={<Plus className="w-6 h-6 text-white" strokeWidth={4} />}
+          actionTitle="Add to queue"
+          title="Add Songs"
           formatTime={formatTime}
         />
 
