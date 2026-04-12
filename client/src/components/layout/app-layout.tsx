@@ -18,6 +18,7 @@ import {
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import CreateRoomModal from "@/components/modals/create-room-modal";
 import JoinRoomModal from "@/components/modals/join-room-modal";
+import SignOutModal from "@/components/modals/sign-out-modal";
 
 function NavItem({
   icon: Icon,
@@ -71,6 +72,7 @@ export default function AppLayout({ children, activePage }: AppLayoutProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   const [isJoinRoomOpen, setIsJoinRoomOpen] = useState(false);
+  const [isSignOutOpen, setIsSignOutOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
@@ -195,7 +197,10 @@ export default function AppLayout({ children, activePage }: AppLayoutProps) {
         <NavItem
           icon={LogOut}
           label="Sign Out"
-          onClick={handleLogout}
+          onClick={() => {
+            setIsSignOutOpen(true);
+            setIsSheetOpen(false);
+          }}
           danger
           collapsed={collapsed}
         />
@@ -248,6 +253,11 @@ export default function AppLayout({ children, activePage }: AppLayoutProps) {
       <JoinRoomModal
         isOpen={isJoinRoomOpen}
         onClose={() => setIsJoinRoomOpen(false)}
+      />
+      <SignOutModal
+        isOpen={isSignOutOpen}
+        onClose={() => setIsSignOutOpen(false)}
+        onConfirm={handleLogout}
       />
 
       {/* Global solo mini player */}
