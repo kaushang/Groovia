@@ -27,6 +27,7 @@ interface GlobalPlayerContextType {
   activeRoomId: string | null;
   setActiveRoomId: (id: string | null) => void;
   playSong: (song: SoloSong) => void;
+  playSongList: (songs: SoloSong[]) => void;
   addToQueue: (song: SoloSong) => void;
   togglePlayPause: () => void;
   toggleLoop: () => void;
@@ -100,6 +101,16 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     [currentSong, playSong]
   );
 
+  const playSongList = useCallback(
+    (songs: SoloSong[]) => {
+      if (!songs || songs.length === 0) return;
+      const [first, ...rest] = songs;
+      setQueue(rest);
+      playSong(first);
+    },
+    [playSong]
+  );
+
   const skip = useCallback(() => {
     if (queue.length > 0) {
       const [next, ...rest] = queue;
@@ -161,6 +172,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
         activeRoomId,
         setActiveRoomId,
         playSong,
+        playSongList,
         addToQueue,
         togglePlayPause,
         toggleLoop,

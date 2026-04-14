@@ -10,6 +10,8 @@ import AuthPage from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 import ProfilePage from "@/pages/profile";
 import HomePage from "@/pages/home";
+import PlaylistsPage from "@/pages/playlists";
+import PlaylistDetailPage from "@/pages/playlist-detail";
 
 function Router() {
   return (
@@ -19,6 +21,9 @@ function Router() {
       <Route path="/room/:roomId" component={Room} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/playlists" component={PlaylistsPage} />
+      <Route path="/playlists/favorites" component={PlaylistDetailPage} />
+      <Route path="/playlists/:playlistId" component={PlaylistDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );

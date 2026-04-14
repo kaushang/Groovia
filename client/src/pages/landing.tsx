@@ -49,10 +49,10 @@ export default function Landing() {
       <div className="absolute top-4 right-6 z-50 md:block">
         {user ? (
           <Button
-            onClick={() => setLocation("/profile")}
+            onClick={() => setLocation("/home")}
             className="bg-gray-100/10 border border-gray-400/20 text-md text-white/80 font-semibold px-4 py-2"
           >
-            Profile
+            Home
           </Button>
         ) : (
           <Button

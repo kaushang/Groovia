@@ -62,7 +62,7 @@ function NavItem({
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  activePage?: "home" | "profile";
+  activePage?: "home" | "profile" | "playlists";
 }
 
 export default function AppLayout({ children, activePage }: AppLayoutProps) {
@@ -162,7 +162,11 @@ export default function AppLayout({ children, activePage }: AppLayoutProps) {
         <NavItem
           icon={ListMusic}
           label="Playlists"
-          onClick={() => {}}
+          active={activePage === "playlists"}
+          onClick={() => {
+            setLocation("/playlists");
+            setIsSheetOpen(false);
+          }}
           collapsed={collapsed}
         />
         <NavItem

@@ -15,6 +15,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import YoutubeVersionsModal from "./youtube-versions-modal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPress } from "@/hooks/use-long-press";
+import AddToPlaylistModal, {
+  AddToPlaylistSongPayload,
+} from "@/components/modals/add-to-playlist-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +57,9 @@ export default function QueueList({
   const [selectedSongForVersions, setSelectedSongForVersions] =
     useState<any>(null);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [songForPlaylist, setSongForPlaylist] =
+    useState<AddToPlaylistSongPayload | null>(null);
   const isMobile = useIsMobile();
 
   const handleOpenVersions = (song: any) => {
@@ -67,6 +73,18 @@ export default function QueueList({
       youtubeVersion: youtubeItem,
     });
     setIsVersionModalOpen(false);
+  };
+
+  const openAddToPlaylist = (song: any) => {
+    setSongForPlaylist({
+      spotifyId: song.id,
+      title: song.name,
+      artists: song.artists,
+      cover: song.image,
+      duration: song.duration,
+      preview_url: song.preview_url,
+    });
+    setIsAddToPlaylistOpen(true);
   };
 
   const formatTime = (seconds: number) => {
@@ -319,6 +337,7 @@ export default function QueueList({
                     index={index}
                     isMobile={isMobile}
                     handleOpenVersions={handleOpenVersions}
+                    onAddToPlaylist={openAddToPlaylist}
                     addToQueueMutation={addToQueueMutation}
                   />
                 ))
@@ -339,6 +358,11 @@ export default function QueueList({
         onSelect={handleSelectVersion}
         formatTime={formatTime}
       />
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistOpen}
+        onClose={() => setIsAddToPlaylistOpen(false)}
+        song={songForPlaylist}
+      />
     </GlassPanel>
   );
 }
@@ -348,12 +372,14 @@ function HistoryItem({
   index,
   isMobile,
   handleOpenVersions,
+  onAddToPlaylist,
   addToQueueMutation,
 }: {
   item: any;
   index: number;
   isMobile: boolean;
   handleOpenVersions: (song: any) => void;
+  onAddToPlaylist: (song: any) => void;
   addToQueueMutation: any;
 }) {
   const songObj = {
@@ -403,6 +429,12 @@ function HistoryItem({
             className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
           >
             Find different versions
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => onAddToPlaylist(songObj)}
+            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
+          >
+            Add to playlist
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

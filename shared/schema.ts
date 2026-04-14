@@ -82,3 +82,12 @@ const songSchema = new Schema({
   youtubeId: { type: String },
 });
 export const Song = model("Song", songSchema);
+
+// Playlists Schema
+const playlistSchema = new Schema({
+  name: { type: String, required: true, trim: true },
+  createdBy: { type: Schema.Types.ObjectId, ref: "RegisteredUser", required: true },
+  songs: [{ type: Schema.Types.ObjectId, ref: "Song" }],
+  createdAt: { type: Date, default: Date.now },
+});
+export const Playlist = model("Playlist", playlistSchema);

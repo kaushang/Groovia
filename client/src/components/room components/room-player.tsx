@@ -17,6 +17,9 @@ import { toast } from "@/hooks/use-toast";
 import YoutubeVersionsModal from "./youtube-versions-modal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPress } from "@/hooks/use-long-press";
+import AddToPlaylistModal, {
+  AddToPlaylistSongPayload,
+} from "@/components/modals/add-to-playlist-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +32,9 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/clerk-react";
+import axios from "axios";
 
 interface PlayerProps {
   className?: string; // For visibility toggling
@@ -93,7 +99,67 @@ export default function Player({
   const [selectedSongForVersions, setSelectedSongForVersions] =
     useState<any>(null);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [songForPlaylist, setSongForPlaylist] =
+    useState<AddToPlaylistSongPayload | null>(null);
   const isMobile = useIsMobile();
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  const addToFavoritesMutation = useMutation({
+    mutationFn: async (song: any) => {
+      const token = await getToken();
+      if (!token) throw new Error("Not authenticated");
+      const payload = {
+        spotifyId: song.id,
+        title: song.name,
+        artists: song.artists,
+        cover: song.image,
+        duration: song.duration,
+        preview_url: song.preview_url,
+      };
+      await axios.post("/api/favorites", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    onSuccess: async (_data, song) => {
+      queryClient.setQueryData(["favorite-songs"], (old: any[] | undefined) => {
+        const prev = Array.isArray(old) ? old : [];
+        if (prev.some((s: any) => s.id === song.id)) return prev;
+        return [
+          {
+            id: song.id,
+            name: song.name,
+            artists: Array.isArray(song.artists)
+              ? song.artists
+              : [song.artists].filter(Boolean),
+            image: song.image,
+            duration: song.duration,
+            preview_url: song.preview_url,
+          },
+          ...prev,
+        ];
+      });
+      await queryClient.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey[0] === "favorite-songs" ||
+          q.queryKey[0] === "playlists" ||
+          q.queryKey[0] === "playlist-detail",
+      });
+      toast({
+        title: "Added to favorites ❤️",
+        description: `${song.name} saved to your favorites.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot add to favorites",
+        description:
+          error?.response?.data?.message || "Please log in to save songs.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleOpenVersions = (song: any) => {
     setSelectedSongForVersions(song);
@@ -106,6 +172,18 @@ export default function Player({
       youtubeVersion: youtubeItem,
     });
     setIsVersionModalOpen(false);
+  };
+
+  const openAddToPlaylist = (song: any) => {
+    setSongForPlaylist({
+      spotifyId: song.id,
+      title: song.name,
+      artists: song.artists,
+      cover: song.image,
+      duration: song.duration,
+      preview_url: song.preview_url,
+    });
+    setIsAddToPlaylistOpen(true);
   };
 
   return (
@@ -422,6 +500,10 @@ export default function Player({
                       song={song}
                       isMobile={isMobile}
                       handleOpenVersions={handleOpenVersions}
+                      onAddToPlaylist={openAddToPlaylist}
+                      onAddToFavorites={(selectedSong) =>
+                        addToFavoritesMutation.mutate(selectedSong)
+                      }
                       addToQueueMutation={addToQueueMutation}
                       formatTime={formatTime}
                       isMobileLayout={true}
@@ -462,6 +544,10 @@ export default function Player({
                     song={song}
                     isMobile={isMobile}
                     handleOpenVersions={handleOpenVersions}
+                    onAddToPlaylist={openAddToPlaylist}
+                    onAddToFavorites={(selectedSong) =>
+                      addToFavoritesMutation.mutate(selectedSong)
+                    }
                     addToQueueMutation={addToQueueMutation}
                     formatTime={formatTime}
                   />
@@ -478,6 +564,11 @@ export default function Player({
         onSelect={handleSelectVersion}
         formatTime={formatTime}
       />
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistOpen}
+        onClose={() => setIsAddToPlaylistOpen(false)}
+        song={songForPlaylist}
+      />
     </GlassPanel>
   );
 }
@@ -486,6 +577,8 @@ function RecommendedSongItem({
   song,
   isMobile,
   handleOpenVersions,
+  onAddToPlaylist,
+  onAddToFavorites,
   addToQueueMutation,
   formatTime,
   isMobileLayout = false,
@@ -493,6 +586,8 @@ function RecommendedSongItem({
   song: any;
   isMobile: boolean;
   handleOpenVersions: (song: any) => void;
+  onAddToPlaylist: (song: any) => void;
+  onAddToFavorites: (song: any) => void;
   addToQueueMutation: any;
   formatTime: (time: number) => string;
   isMobileLayout?: boolean;
@@ -527,6 +622,18 @@ function RecommendedSongItem({
             className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
           >
             Find different versions
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => onAddToPlaylist(song)}
+            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
+          >
+            Add to playlist
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => onAddToFavorites(song)}
+            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white text-rose-400 focus:text-rose-300"
+          >
+            Add to favorites
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

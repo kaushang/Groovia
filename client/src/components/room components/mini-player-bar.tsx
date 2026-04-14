@@ -8,7 +8,7 @@ import {
   CirclePlus,
 } from "lucide-react";
 import DoubleMarquee from "@/components/double-marquee";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +56,7 @@ export default function MiniPlayerBar({
 }: MiniPlayerBarProps) {
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const addToFavoritesMutation = useMutation({
     mutationFn: async (songData: any) => {
@@ -76,7 +77,32 @@ export default function MiniPlayerBar({
       });
       return res.data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
+      const song = variables.song;
+      queryClient.setQueryData(["favorite-songs"], (old: any[] | undefined) => {
+        const prev = Array.isArray(old) ? old : [];
+        const spotifyId = song.spotifyId || song.id;
+        if (prev.some((s: any) => s.id === spotifyId)) return prev;
+        return [
+          {
+            id: spotifyId,
+            name: song.title || song.name,
+            artists: Array.isArray(song.artists)
+              ? song.artists
+              : [song.artist || song.artists].filter(Boolean),
+            image: song.cover || song.image,
+            duration: song.duration,
+            preview_url: song.url || song.preview_url,
+          },
+          ...prev,
+        ];
+      });
+      await queryClient.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey[0] === "favorite-songs" ||
+          q.queryKey[0] === "playlists" ||
+          q.queryKey[0] === "playlist-detail",
+      });
       toast({
         title: "Added to favorites",
         description: `${variables.song.title} has been saved to your profile.`,

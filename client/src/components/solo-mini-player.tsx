@@ -11,7 +11,7 @@ import {
   CirclePlus,
   Trash2,
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
@@ -36,6 +36,7 @@ export default function SoloMiniPlayer() {
   } = useGlobalPlayer();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // ── A-B Loop state (local) ──────────────────────────────────────────────
   const [loopStart, setLoopStart] = useState<number | null>(null);
@@ -103,11 +104,36 @@ export default function SoloMiniPlayer() {
       );
       return res.data;
     },
-    onSuccess: () =>
+    onSuccess: async () => {
+      queryClient.setQueryData(["favorite-songs"], (old: any[] | undefined) => {
+        const prev = Array.isArray(old) ? old : [];
+        const spotifyId = currentSong?.spotifyId || currentSong?.youtubeId;
+        if (!spotifyId || !currentSong) return prev;
+        if (prev.some((s: any) => s.id === spotifyId)) return prev;
+        return [
+          {
+            id: spotifyId,
+            name: currentSong.title,
+            artists: Array.isArray(currentSong.artists)
+              ? currentSong.artists
+              : [currentSong.artists].filter(Boolean),
+            image: currentSong.cover,
+            duration: (currentSong.duration || 0) * 1000,
+          },
+          ...prev,
+        ];
+      });
+      await queryClient.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey[0] === "favorite-songs" ||
+          q.queryKey[0] === "playlists" ||
+          q.queryKey[0] === "playlist-detail",
+      });
       toast({
         title: "Added to favorites ❤️",
         description: `${currentSong?.title} saved.`,
-      }),
+      });
+    },
     onError: (err: any) =>
       toast({
         title: "Error",

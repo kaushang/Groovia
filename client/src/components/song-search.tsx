@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useAuth } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
@@ -12,10 +12,12 @@ import YoutubeVersionsModal from "./room components/youtube-versions-modal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import AddToPlaylistModal, {
+  AddToPlaylistSongPayload,
+} from "@/components/modals/add-to-playlist-modal";
+import SongContextMenuContent from "@/components/song-context-menu-content";
 
 interface SongSearchProps {
   className?: string;
@@ -44,9 +46,13 @@ export default function SongSearch({
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [selectedSongForVersions, setSelectedSongForVersions] = useState<any>(null);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [songForPlaylist, setSongForPlaylist] =
+    useState<AddToPlaylistSongPayload | null>(null);
   const isMobile = useIsMobile();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const addToFavoritesMutation = useMutation({
     mutationFn: async (song: any) => {
@@ -68,6 +74,29 @@ export default function SongSearch({
       return res.data;
     },
     onSuccess: (data, variables) => {
+      queryClient.setQueryData(["favorite-songs"], (old: any[] | undefined) => {
+        const prev = Array.isArray(old) ? old : [];
+        if (prev.some((s: any) => s.id === variables.id)) return prev;
+        return [
+          {
+            id: variables.id,
+            name: variables.name,
+            artists: Array.isArray(variables.artists)
+              ? variables.artists
+              : [variables.artists].filter(Boolean),
+            image: variables.image,
+            duration: variables.duration,
+            preview_url: variables.preview_url,
+          },
+          ...prev,
+        ];
+      });
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey[0] === "favorite-songs" ||
+          q.queryKey[0] === "playlists" ||
+          q.queryKey[0] === "playlist-detail",
+      });
       toast({
         title: "Added to favorites ❤️",
         description: `${variables.name} has been saved to your profile.`,
@@ -126,6 +155,18 @@ export default function SongSearch({
     setIsVersionModalOpen(false);
   };
 
+  const openAddToPlaylist = (song: any) => {
+    setSongForPlaylist({
+      spotifyId: song.id,
+      title: song.name,
+      artists: song.artists,
+      cover: song.image,
+      duration: song.duration,
+      preview_url: song.preview_url,
+    });
+    setIsAddToPlaylistOpen(true);
+  };
+
   const Container = asGlassPanel ? GlassPanel : "div";
   const containerClasses = asGlassPanel 
     ? `p-2 flex-1 h-full min-h-0 lg:h-[80vh] flex flex-col ${className}`
@@ -178,6 +219,7 @@ export default function SongSearch({
                 song={song}
                 isMobile={isMobile}
                 handleOpenVersions={handleOpenVersions}
+                onAddToPlaylist={openAddToPlaylist}
                 onAction={onAction}
                 isActionPending={isActionPending(song.id)}
                 actionIcon={actionIcon}
@@ -233,6 +275,11 @@ export default function SongSearch({
         onSelect={handleSelectVersion}
         formatTime={formatTime}
       />
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistOpen}
+        onClose={() => setIsAddToPlaylistOpen(false)}
+        song={songForPlaylist}
+      />
     </Container>
   );
 }
@@ -241,6 +288,7 @@ function SongItem({
   song,
   isMobile,
   handleOpenVersions,
+  onAddToPlaylist,
   onAction,
   isActionPending,
   actionIcon,
@@ -251,6 +299,7 @@ function SongItem({
   song: any;
   isMobile: boolean;
   handleOpenVersions: (song: any) => void;
+  onAddToPlaylist: (song: any) => void;
   onAction: (payload: { song: any; youtubeVersion?: any }) => void;
   isActionPending: boolean;
   actionIcon: React.ReactNode;
@@ -281,20 +330,14 @@ function SongItem({
             </div>
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent className="bg-black/60 backdrop-blur-xl border-white/10 text-white min-w-[160px]">
-          <ContextMenuItem
-            onClick={() => handleOpenVersions(song)}
-            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white"
-          >
-            Find different versions
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => addToFavoritesMutation.mutate(song)}
-            className="cursor-pointer hover:bg-white/10 focus:bg-white/10 focus:text-white text-rose-400 focus:text-rose-300"
-          >
-            Add to favorites
-          </ContextMenuItem>
-        </ContextMenuContent>
+        <SongContextMenuContent
+          song={song}
+          onFindVersions={handleOpenVersions}
+          onAddToPlaylist={onAddToPlaylist}
+          onAddToFavorites={(selectedSong) =>
+            addToFavoritesMutation.mutate(selectedSong)
+          }
+        />
       </ContextMenu>
 
       <div className="text-gray-400 text-xs mr-3 tabular-nums shrink-0">

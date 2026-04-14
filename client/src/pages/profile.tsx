@@ -1,16 +1,9 @@
-import { useState } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import AppLayout from "@/components/layout/app-layout";
-import { Loader2, Heart, Music2, Users, Clock } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const formatTime = (ms: number) => {
-  const s = ms / 1000;
-  return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
-};
+import { Loader2, Heart, Music2, Users } from "lucide-react";
 
 // Derive top artists from the favorites list
 function getTopArtists(songs: any[]): { name: string; count: number }[] {
@@ -33,7 +26,7 @@ export default function ProfilePage() {
   const [, setLocation] = useLocation();
 
   const { data: favoriteSongs = [], isLoading: isFetchingFavorites } = useQuery({
-    queryKey: ["favorites"],
+    queryKey: ["favorite-songs"],
     queryFn: async () => {
       const token = await getToken();
       if (!token) throw new Error("Not authenticated");
@@ -41,6 +34,18 @@ export default function ProfilePage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.data.favorites;
+    },
+    enabled: !!user,
+  });
+  const { data: playlists = [], isLoading: isFetchingPlaylists } = useQuery({
+    queryKey: ["playlists"],
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token) throw new Error("Not authenticated");
+      const res = await axios.get("/api/playlists", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.data.playlists;
     },
     enabled: !!user,
   });
@@ -107,98 +112,54 @@ export default function ProfilePage() {
             value={favoriteSongs.length}
             loading={isFetchingFavorites}
           />
-          <StatCard icon={Music2} label="Playlists" value={0} />
+          <StatCard
+            icon={Music2}
+            label="Playlists"
+            value={playlists.length}
+            loading={isFetchingPlaylists}
+          />
           <StatCard icon={Users} label="Friends" value={0} />
         </section>
 
-        {/* ── Tabs ── */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="bg-white/[0.06] border border-white/[0.08] rounded-lg h-9 p-1 w-full">
-            <TabsTrigger
-              value="overview"
-              className="flex-1 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-500 rounded-md transition-all"
-            >
-              Overview
-            </TabsTrigger>
-            <TabsTrigger
-              value="favorites"
-              className="flex-1 text-xs data-[state=active]:bg-white/10 data-[state=active]:text-white text-gray-500 rounded-md transition-all"
-            >
-              Favorites
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="mt-5 flex flex-col gap-6">
-            {/* Top Artists */}
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
-                Your Top Artists
-              </h2>
-              {isFetchingFavorites ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
-                </div>
-              ) : topArtists.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  {topArtists.map((artist, index) => (
-                    <div
-                      key={artist.name}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors"
-                    >
-                      <span className="text-xs text-gray-600 w-4 text-right shrink-0">
-                        {index + 1}
-                      </span>
-                      <div className="w-8 h-8 rounded-full bg-white/[0.08] border border-white/10 flex items-center justify-center shrink-0">
-                        <Music2 className="w-4 h-4 text-gray-500" />
-                      </div>
-                      <p className="flex-1 text-sm font-medium text-gray-200 truncate">
-                        {artist.name}
-                      </p>
-                      <span className="text-xs text-gray-600 shrink-0">
-                        {artist.count} {artist.count === 1 ? "track" : "tracks"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  message="No top artists yet"
-                  sub="Songs you favorite will appear here."
-                />
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Favorites Tab */}
-          <TabsContent value="favorites" className="mt-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                Liked Songs
-              </h2>
-              {favoriteSongs.length > 0 && !isFetchingFavorites && (
-                <span className="text-xs text-gray-600">{favoriteSongs.length} tracks</span>
-              )}
-            </div>
-
+        <section className="flex flex-col gap-6">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+              Your Top Artists
+            </h2>
             {isFetchingFavorites ? (
-              <div className="flex justify-center py-14">
+              <div className="flex justify-center py-10">
                 <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
               </div>
-            ) : favoriteSongs.length > 0 ? (
-              <div className="flex flex-col gap-0.5">
-                {favoriteSongs.map((song: any, index: number) => (
-                  <FavoriteSongRow key={song.id || song._id} song={song} index={index} />
+            ) : topArtists.length > 0 ? (
+              <div className="flex flex-col gap-1">
+                {topArtists.map((artist, index) => (
+                  <div
+                    key={artist.name}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors"
+                  >
+                    <span className="text-xs text-gray-600 w-4 text-right shrink-0">
+                      {index + 1}
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-white/[0.08] border border-white/10 flex items-center justify-center shrink-0">
+                      <Music2 className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <p className="flex-1 text-sm font-medium text-gray-200 truncate">
+                      {artist.name}
+                    </p>
+                    <span className="text-xs text-gray-600 shrink-0">
+                      {artist.count} {artist.count === 1 ? "track" : "tracks"}
+                    </span>
+                  </div>
                 ))}
               </div>
             ) : (
               <EmptyState
-                message="No favorites yet"
-                sub='Right-click any song in a room or on the home page and hit "Add to favorites".'
+                message="No top artists yet"
+                sub="Songs you favorite will appear here."
               />
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </section>
       </div>
     </AppLayout>
   );
@@ -226,31 +187,6 @@ function StatCard({
         <span className="text-xl font-bold text-white">{value}</span>
       )}
       <span className="text-[11px] text-gray-600 uppercase tracking-wide">{label}</span>
-    </div>
-  );
-}
-
-function FavoriteSongRow({ song, index }: { song: any; index: number }) {
-  const artistsStr = Array.isArray(song.artists)
-    ? song.artists.join(", ")
-    : song.artists;
-
-  return (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
-      <span className="text-xs text-gray-600 w-4 text-right shrink-0">{index + 1}</span>
-      <img
-        src={song.image || song.cover}
-        alt={song.name || song.title}
-        className="w-9 h-9 rounded object-cover shrink-0"
-      />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{song.name || song.title}</p>
-        <p className="text-xs text-gray-500 truncate mt-0.5">{artistsStr}</p>
-      </div>
-      <span className="text-xs text-gray-600 shrink-0 tabular-nums flex items-center gap-1">
-        <Clock className="w-3 h-3" />
-        {formatTime(song.duration)}
-      </span>
     </div>
   );
 }

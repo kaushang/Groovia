@@ -5,7 +5,7 @@ import {
   ServerResponse,
   type Server,
 } from "http";
-import { User, Room, Song, RegisteredUser } from "@shared/schema";
+import { User, Room, Song, RegisteredUser, Playlist } from "@shared/schema";
 import axios from "axios";
 import qs from "qs";
 import { Server as SocketIOServer } from "socket.io";
@@ -43,11 +43,301 @@ function generateRoomCode(): string {
   return code;
 }
 
+async function ensureRegisteredUser(clerkId: string) {
+  let user = await RegisteredUser.findOne({ clerkId });
+  if (user) return user;
+
+  const clerkUser = await clerkClient.users.getUser(clerkId);
+  const email = clerkUser.emailAddresses[0]?.emailAddress || "unknown@clerk.user";
+
+  user = new RegisteredUser({
+    clerkId,
+    email,
+    firstName: clerkUser.firstName || "",
+    lastName: clerkUser.lastName || "",
+    imageUrl: clerkUser.imageUrl || "",
+  });
+  await user.save();
+  return user;
+}
+
 export async function registerRoutes(
   app: Express,
   server: Server<typeof IncomingMessage, typeof ServerResponse>,
   io: SocketIOServer
 ): Promise<Server> {
+
+  // Get user's playlists
+  app.get("/api/playlists", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await RegisteredUser.findOne({ clerkId: userId })
+        .populate({
+          path: "playlists",
+          populate: { path: "songs", model: "Song" },
+          options: { sort: { createdAt: -1 } },
+        });
+
+      if (!user) {
+        return res.json({ playlists: [] });
+      }
+
+      const playlists = (user.playlists as any[]).map((playlist: any) => ({
+        id: playlist._id,
+        name: playlist.name,
+        songCount: playlist.songs?.length || 0,
+        createdAt: playlist.createdAt,
+      }));
+
+      res.json({ playlists });
+    } catch (error) {
+      console.error("Error fetching playlists:", error);
+      res.status(500).json({ message: "Failed to fetch playlists" });
+    }
+  });
+
+  // Create playlist
+  app.post("/api/playlists", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const { name } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const trimmedName = typeof name === "string" ? name.trim() : "";
+      if (!trimmedName) {
+        return res.status(400).json({ message: "Playlist name is required" });
+      }
+
+      const user = await ensureRegisteredUser(userId);
+
+      const existing = await Playlist.findOne({
+        createdBy: user._id,
+        name: { $regex: `^${trimmedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+      });
+      if (existing) {
+        return res.status(409).json({ message: "A playlist with this name already exists" });
+      }
+
+      const playlist = new Playlist({
+        name: trimmedName,
+        createdBy: user._id,
+        songs: [],
+      });
+      await playlist.save();
+
+      user.playlists.push(playlist._id);
+      await user.save();
+
+      res.status(201).json({
+        success: true,
+        playlist: {
+          id: playlist._id,
+          name: playlist.name,
+          songCount: 0,
+          createdAt: playlist.createdAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating playlist:", error);
+      res.status(500).json({ message: "Failed to create playlist" });
+    }
+  });
+
+  // Add song to playlist
+  app.post("/api/playlists/:playlistId/songs", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const { playlistId } = req.params;
+      const { spotifyId, title, artists, artist, cover, duration, preview_url, url } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!playlistId) {
+        return res.status(400).json({ message: "Playlist ID is required" });
+      }
+
+      const user = await ensureRegisteredUser(userId);
+
+      const playlist = await Playlist.findById(playlistId);
+      if (!playlist) {
+        return res.status(404).json({ message: "Playlist not found" });
+      }
+
+      if (playlist.createdBy.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: "You can only edit your own playlists" });
+      }
+
+      const effectiveSpotifyId = spotifyId;
+      if (!effectiveSpotifyId) {
+        return res.status(400).json({ message: "Song must have a spotifyId" });
+      }
+
+      // Find or create song
+      let song = await Song.findOne({ spotifyId: effectiveSpotifyId });
+      if (!song) {
+        const artistStr = Array.isArray(artists)
+          ? artists.join(", ")
+          : (artist || "Unknown Artist");
+        song = new Song({
+          title: title || "Unknown Title",
+          artist: artistStr,
+          cover: cover,
+          duration: duration,
+          url: url || preview_url,
+          spotifyId: effectiveSpotifyId,
+        });
+        await song.save();
+      }
+
+      const alreadyInPlaylist = (playlist.songs as any[]).some(
+        (id) => id.toString() === song!._id.toString(),
+      );
+      if (!alreadyInPlaylist) {
+        playlist.songs.push(song._id);
+        await playlist.save();
+      }
+
+      res.json({
+        success: true,
+        message: alreadyInPlaylist ? "Already in playlist" : "Added to playlist",
+      });
+    } catch (error) {
+      console.error("Error adding song to playlist:", error);
+      res.status(500).json({ message: "Failed to add song to playlist" });
+    }
+  });
+
+  // Get a single playlist with songs
+  app.get("/api/playlists/:playlistId", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const { playlistId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await ensureRegisteredUser(userId);
+      const playlist = await Playlist.findById(playlistId).populate("songs");
+      if (!playlist) {
+        return res.status(404).json({ message: "Playlist not found" });
+      }
+
+      if (playlist.createdBy.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: "You can only view your own playlists" });
+      }
+
+      const songs = (playlist.songs as any[]).map((song: any) => ({
+        id: song.spotifyId,
+        _id: song._id,
+        name: song.title,
+        artists: song.artist ? song.artist.split(",").map((a: string) => a.trim()) : [],
+        image: song.cover,
+        duration: song.duration,
+        preview_url: song.url,
+      }));
+
+      res.json({
+        playlist: {
+          id: playlist._id,
+          name: playlist.name,
+          createdAt: playlist.createdAt,
+          songCount: songs.length,
+          songs,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching playlist:", error);
+      res.status(500).json({ message: "Failed to fetch playlist" });
+    }
+  });
+
+  // Edit playlist name
+  app.patch("/api/playlists/:playlistId", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const { playlistId } = req.params;
+      const { name } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const trimmedName = typeof name === "string" ? name.trim() : "";
+      if (!trimmedName) {
+        return res.status(400).json({ message: "Playlist name is required" });
+      }
+
+      const user = await ensureRegisteredUser(userId);
+      const playlist = await Playlist.findById(playlistId);
+      if (!playlist) {
+        return res.status(404).json({ message: "Playlist not found" });
+      }
+      if (playlist.createdBy.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: "You can only edit your own playlists" });
+      }
+
+      const existing = await Playlist.findOne({
+        createdBy: user._id,
+        _id: { $ne: playlist._id },
+        name: {
+          $regex: `^${trimmedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+          $options: "i",
+        },
+      });
+      if (existing) {
+        return res.status(409).json({ message: "A playlist with this name already exists" });
+      }
+
+      playlist.name = trimmedName;
+      await playlist.save();
+      res.json({ success: true, playlist: { id: playlist._id, name: playlist.name } });
+    } catch (error) {
+      console.error("Error editing playlist:", error);
+      res.status(500).json({ message: "Failed to edit playlist" });
+    }
+  });
+
+  // Delete playlist
+  app.delete("/api/playlists/:playlistId", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const { playlistId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await ensureRegisteredUser(userId);
+      const playlist = await Playlist.findById(playlistId);
+      if (!playlist) {
+        return res.status(404).json({ message: "Playlist not found" });
+      }
+      if (playlist.createdBy.toString() !== user._id.toString()) {
+        return res.status(403).json({ message: "You can only delete your own playlists" });
+      }
+
+      await Playlist.findByIdAndDelete(playlistId);
+      await RegisteredUser.updateOne(
+        { _id: user._id },
+        { $pull: { playlists: playlist._id } },
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting playlist:", error);
+      res.status(500).json({ message: "Failed to delete playlist" });
+    }
+  });
 
   // Get room details by ID
   app.get("/api/rooms/:roomId", async (req, res) => {
@@ -622,6 +912,41 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching favorites:", error);
       res.status(500).json({ message: "Failed to fetch favorites" });
+    }
+  });
+
+  // Remove a song from favorites by spotifyId
+  app.delete("/api/favorites/:spotifyId", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const { spotifyId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!spotifyId) {
+        return res.status(400).json({ message: "spotifyId is required" });
+      }
+
+      const user = await RegisteredUser.findOne({ clerkId: userId });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const song = await Song.findOne({ spotifyId });
+      if (!song) {
+        return res.status(404).json({ message: "Song not found" });
+      }
+
+      await RegisteredUser.updateOne(
+        { _id: user._id },
+        { $pull: { favoriteSongs: song._id } },
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ message: "Failed to remove favorite" });
     }
   });
 
