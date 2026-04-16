@@ -11,6 +11,7 @@ import { ArrowRight, Disc3 } from "lucide-react";
 import AnimatedLogo from "@/components/animated-logo";
 import ForgetPassword from "@/components/auth-components/forget-password";
 import VerifySignup from "@/components/auth-components/verify-signup";
+import { Link } from "wouter";
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -176,144 +177,153 @@ export default function AuthPage() {
                   </p>
                 </div>
 
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full"
-            >
-              <TabsList className="grid w-full grid-cols-2 mb-8 bg-black/30 p-0 px-1 border border-white/5">
-                <TabsTrigger value="login" className="text-gray-300">
-                  Sign In
-                </TabsTrigger>
-                <TabsTrigger value="signup" className="text-gray-300">
-                  Create Account
-                </TabsTrigger>
-              </TabsList>
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                >
+                  <TabsList className="grid w-full grid-cols-2 mb-8 bg-black/30 p-0 px-1 border border-white/5">
+                    <TabsTrigger value="login" className="text-gray-300">
+                      Sign In
+                    </TabsTrigger>
+                    <TabsTrigger value="signup" className="text-gray-300">
+                      Create Account
+                    </TabsTrigger>
+                  </TabsList>
 
-              <TabsContent
-                value="login"
-                className="mt-0 focus-visible:outline-none focus-visible:ring-0"
-              >
-                <form onSubmit={handleSignIn} className="space-y-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-200 ml-1">
-                      Email Address
-                    </Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder="name@example.com"
-                      required
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between ml-1">
-                      <Label htmlFor="password" className="text-gray-200">
-                        Password
-                      </Label>
-                      <button
-                        type="button"
-                        onClick={() => setIsForgotPassword(true)}
-                        className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                  <TabsContent
+                    value="login"
+                    className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+                  >
+                    <form onSubmit={handleSignIn} className="space-y-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-gray-200 ml-1">
+                          Email Address
+                        </Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          placeholder="name@example.com"
+                          required
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between ml-1">
+                          <Label htmlFor="password" className="text-gray-200">
+                            Password
+                          </Label>
+                          <button
+                            type="button"
+                            onClick={() => setIsForgotPassword(true)}
+                            className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                        <Input
+                          id="password"
+                          name="password"
+                          type="password"
+                          placeholder="••••••••"
+                          required
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 p-6 md:text-[16px] mt-6 flex items-center justify-center gap-2 group"
+                        disabled={isLoading}
                       >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 p-6 md:text-[16px] mt-6 flex items-center justify-center gap-2 group"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      "Signing in..."
-                    ) : (
-                      <>
-                        Sign In
-                        <ArrowRight className="w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
+                        {isLoading ? (
+                          "Signing in..."
+                        ) : (
+                          <>
+                            Sign In
+                            <ArrowRight className="w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </TabsContent>
 
-              <TabsContent
-                value="signup"
-                className="mt-0 focus-visible:outline-none focus-visible:ring-0"
-              >
-                <form onSubmit={handleSignUp} className="space-y-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="username" className="text-gray-200 ml-1">
-                      Username
-                    </Label>
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder="johndoe"
-                      required
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="signup-email"
-                      className="text-gray-200 ml-1"
-                    >
-                      Email Address
-                    </Label>
-                    <Input
-                      id="signup-email"
-                      name="email"
-                      type="email"
-                      placeholder="name@example.com"
-                      required
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="signup-password"
-                      className="text-gray-200 ml-1"
-                    >
-                      Password
-                    </Label>
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 p-6 md:text-[16px] mt-6 flex items-center justify-center gap-2 group"
-                    disabled={isLoading}
+                  <TabsContent
+                    value="signup"
+                    className="mt-0 focus-visible:outline-none focus-visible:ring-0"
                   >
-                    {isLoading ? (
-                      "Creating account..."
-                    ) : (
-                      <>
-                        Create Account
-                        <ArrowRight className="w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+                    <form onSubmit={handleSignUp} className="space-y-5">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="username"
+                          className="text-gray-200 ml-1"
+                        >
+                          Username
+                        </Label>
+                        <Input
+                          id="username"
+                          name="username"
+                          type="text"
+                          placeholder="johndoe"
+                          required
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="signup-email"
+                          className="text-gray-200 ml-1"
+                        >
+                          Email Address
+                        </Label>
+                        <Input
+                          id="signup-email"
+                          name="email"
+                          type="email"
+                          placeholder="name@example.com"
+                          required
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="signup-password"
+                          className="text-gray-200 ml-1"
+                        >
+                          Password
+                        </Label>
+                        <Input
+                          id="signup-password"
+                          name="password"
+                          type="password"
+                          placeholder="••••••••"
+                          required
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 md:text-[16px] p-2 h-auto tracking-wide transition-all"
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 p-6 md:text-[16px] mt-6 flex items-center justify-center gap-2 group"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          "Creating account..."
+                        ) : (
+                          <>
+                            Create Account
+                            <ArrowRight className="w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </TabsContent>
+                </Tabs>
+                <Link
+                  to="/privacy-policy"
+                  className="text-gray-200 underline text-xs mt-2"
+                >
+                  Privacy Policy
+                </Link>
               </div>
             )}
           </GlassPanel>

@@ -12,6 +12,7 @@ import ProfilePage from "@/pages/profile";
 import HomePage from "@/pages/home";
 import PlaylistsPage from "@/pages/playlists";
 import PlaylistDetailPage from "@/pages/playlist-detail";
+import PrivacyPolicy from "@/pages/privacy-policy";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/playlists" component={PlaylistsPage} />
       <Route path="/playlists/favorites" component={PlaylistDetailPage} />
       <Route path="/playlists/:playlistId" component={PlaylistDetailPage} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route component={NotFound} />
     </Switch>
   );
