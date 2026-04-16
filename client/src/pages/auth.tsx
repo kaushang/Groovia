@@ -12,7 +12,6 @@ import AnimatedLogo from "@/components/animated-logo";
 import ForgetPassword from "@/components/auth-components/forget-password";
 import VerifySignup from "@/components/auth-components/verify-signup";
 import { FcGoogle } from "react-icons/fc";
-import { Link } from "wouter";
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -217,7 +216,7 @@ export default function AuthPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 md:text-[16px] p-6 h-auto flex items-center justify-center gap-3"
+                      className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 md:text-[16px] p-3 h-auto flex items-center justify-center gap-3"
                       onClick={handleGoogleSignIn}
                       disabled={isGoogleLoading || isLoading}
                     >
@@ -362,12 +361,6 @@ export default function AuthPage() {
                     </form>
                   </TabsContent>
                 </Tabs>
-                <Link
-                  to="/privacy-policy"
-                  className="text-gray-200 underline text-xs mt-2"
-                >
-                  Privacy Policy
-                </Link>
               </div>
             )}
           </GlassPanel>
