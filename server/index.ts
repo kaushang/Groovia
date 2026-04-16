@@ -6,6 +6,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 dotenv.config();
+import { clerkMiddleware } from "@clerk/express";
 import connectDB from "./config/db.ts";
 import { Room, Song, User } from "@shared/schema.ts";
 import path from "path";
@@ -33,6 +34,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use("/covers", express.static(path.join(__dirname, "public/covers")));
 app.use("/songs", express.static(path.join(__dirname, "public/songs")));
+app.use(clerkMiddleware());
 
 // Your existing logging middleware
 app.use((req, res, next) => {

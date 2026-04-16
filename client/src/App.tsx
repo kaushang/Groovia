@@ -13,6 +13,11 @@ import HomePage from "@/pages/home";
 import PlaylistsPage from "@/pages/playlists";
 import PlaylistDetailPage from "@/pages/playlist-detail";
 import PrivacyPolicy from "@/pages/privacy-policy";
+import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
+
+function SsoCallbackPage() {
+  return <AuthenticateWithRedirectCallback />;
+}
 
 function Router() {
   return (
@@ -21,6 +26,7 @@ function Router() {
       <Route path="/home" component={HomePage} />
       <Route path="/room/:roomId" component={Room} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/auth/sso-callback" component={SsoCallbackPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/playlists" component={PlaylistsPage} />
       <Route path="/playlists/favorites" component={PlaylistDetailPage} />

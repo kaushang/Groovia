@@ -11,6 +11,7 @@ import { ArrowRight, Disc3 } from "lucide-react";
 import AnimatedLogo from "@/components/animated-logo";
 import ForgetPassword from "@/components/auth-components/forget-password";
 import VerifySignup from "@/components/auth-components/verify-signup";
+import { FcGoogle } from "react-icons/fc";
 import { Link } from "wouter";
 
 export default function AuthPage() {
@@ -18,6 +19,7 @@ export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [pendingVerification, setPendingVerification] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { isLoaded: isSignUpLoaded, signUp } = useSignUp();
   const { isLoaded: isSignInLoaded, signIn, setActive } = useSignIn();
   const [, setLocation] = useLocation();
@@ -82,6 +84,26 @@ export default function AuthPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (!isSignInLoaded) return;
+
+    setIsGoogleLoading(true);
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/auth/sso-callback",
+        redirectUrlComplete: "/home",
+      });
+    } catch (err: any) {
+      setIsGoogleLoading(false);
+      toast({
+        title: "Google sign in failed",
+        description: err.errors?.[0]?.message || err.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -190,6 +212,28 @@ export default function AuthPage() {
                       Create Account
                     </TabsTrigger>
                   </TabsList>
+
+                  <div className="space-y-4 mb-8">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 md:text-[16px] p-6 h-auto flex items-center justify-center gap-3"
+                      onClick={handleGoogleSignIn}
+                      disabled={isGoogleLoading || isLoading}
+                    >
+                      <FcGoogle className="w-5 h-5" />
+                      {isGoogleLoading
+                        ? "Redirecting to Google..."
+                        : "Continue with Google"}
+                    </Button>
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-white/10" />
+                      <span className="text-xs uppercase tracking-widest text-gray-400">
+                        or
+                      </span>
+                      <div className="h-px flex-1 bg-white/10" />
+                    </div>
+                  </div>
 
                   <TabsContent
                     value="login"
