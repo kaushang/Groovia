@@ -110,7 +110,7 @@ export default function AuthPage() {
     <div className="min-h-screen flex w-full">
       {/* Left section - Branding & Visuals (Hidden on mobile) */}
       <div className="hidden lg:flex w-1/2 relative items-center justify-center p-12">
-        <div className="md:h-fit w-full flex items-center flex-col items-center justify-center">
+        <div className="md:h-fit w-full flex items-center flex-col justify-center">
           <div className="w-full flex justify-center">
             <AnimatedLogo size="md" />
           </div>
@@ -177,7 +177,7 @@ export default function AuthPage() {
       {/* Right section - Form */}
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 md:p-12 relative min-h-[100dvh]">
         {/* Mobile Logo */}
-        <div className="lg:hidden absolute p-6 top-8 left-0 w-full flex justify-center opacity-90">
+        <div className="lg:hidden absolute p-6 top-8 left-0 w-full flex justify-center opacity-90 mt-4">
           <AnimatedLogo size="lg" />
         </div>
 
@@ -216,7 +216,7 @@ export default function AuthPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 md:text-[16px] p-3 h-auto flex items-center justify-center gap-3"
+                      className="w-full border-white/20 bg-white/5 text-white hover:text-white hover:bg-white/10 md:text-[16px] p-3 h-auto flex items-center justify-center gap-3"
                       onClick={handleGoogleSignIn}
                       disabled={isGoogleLoading || isLoading}
                     >
