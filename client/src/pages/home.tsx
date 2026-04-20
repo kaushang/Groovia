@@ -173,14 +173,7 @@ export default function HomePage() {
 
   return (
     <AppLayout activePage="home">
-      <div className="px-5 md:px-10 py-4 pb-32 max-w-3xl mx-auto flex flex-col gap-8">
-        {/* Greeting */}
-        {/* <section className="flex flex-row items-end">
-          <p className="text-xl text-white uppercase tracking-widest font-semibold ">
-            {getGreeting()},
-          </p>
-          <h1 className="text-xl md:text-2xl font-semibold text-white ml-1 uppercase">{displayName}</h1>
-        </section> */}
+      <div className="px-4 md:px-10 py-4 max-w-3xl mx-auto flex flex-col gap-8">
 
         <SongSearch
           onAction={handleAction}

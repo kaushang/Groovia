@@ -103,7 +103,7 @@ export default function AddToPlaylistModal({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="glass-panel border-white/20 bg-gray text-white max-w-[420px] sm:max-w-md">
+      <DialogContent className="glass-panel border-white/20 bg-gray text-white max-w-[420px] sm:max-w-md mx-2">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-center">
             {title}

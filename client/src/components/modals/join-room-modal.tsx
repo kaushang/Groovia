@@ -103,7 +103,7 @@ export default function JoinRoomModal({
         onEscapeKeyDown={isLinkJoin ? (e) => e.preventDefault() : undefined}
       >
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold mb-0 text-center">
+          <DialogTitle className="text-2xl font-bold mb-0 text-center">
             {isLinkJoin ? "Join Room" : "Join a Room"}
           </DialogTitle>
         </DialogHeader>

@@ -96,7 +96,7 @@ export default function CreateRoomModal({
         data-testid="create-room-modal"
       >
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold mb-0 text-center">
+          <DialogTitle className="text-2xl font-bold mb-0 text-center">
             Create a Room
           </DialogTitle>
         </DialogHeader>

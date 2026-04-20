@@ -25,7 +25,7 @@ export default function LeaveRoomModal({
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="glass-panel border-white/20 bg-transparent bg-white/5 backdrop-blur-xl text-white max-w-[364px] sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-3xl font-bold mb-2 text-center">
+                    <DialogTitle className="text-2xl font-bold mb-2 text-center">
                         Leaving so soon?
                     </DialogTitle>
                     <DialogDescription className="text-gray-300 text-center text-sm text-center">

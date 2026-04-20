@@ -31,19 +31,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Loader2,
-  MoreVertical,
-  Play,
-  Music4,
-} from "lucide-react";
+import { Loader2, MoreVertical, Play, Music4 } from "lucide-react";
 import AddToPlaylistModal, {
   AddToPlaylistSongPayload,
 } from "@/components/modals/add-to-playlist-modal";
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import SongContextMenuContent from "@/components/song-context-menu-content";
 import YoutubeVersionsModal from "@/components/room components/youtube-versions-modal";
 
@@ -83,11 +75,14 @@ export default function PlaylistDetailPage() {
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
   const [songForPlaylist, setSongForPlaylist] =
     useState<AddToPlaylistSongPayload | null>(null);
-  const [selectedSongForVersions, setSelectedSongForVersions] = useState<Song | null>(null);
+  const [selectedSongForVersions, setSelectedSongForVersions] =
+    useState<Song | null>(null);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: isFavorites ? ["favorite-songs"] : ["playlist-detail", playlistId],
+    queryKey: isFavorites
+      ? ["favorite-songs"]
+      : ["playlist-detail", playlistId],
     queryFn: async () => {
       const token = await getToken();
       if (!token) throw new Error("Not authenticated");
@@ -106,8 +101,9 @@ export default function PlaylistDetailPage() {
   });
 
   const songs = isFavorites
-    ? ((data as Song[] | undefined) || [])
-    : ((data as { id: string; name: string; songs: Song[] } | undefined)?.songs || []);
+    ? (data as Song[] | undefined) || []
+    : (data as { id: string; name: string; songs: Song[] } | undefined)
+        ?.songs || [];
 
   const editMutation = useMutation({
     mutationFn: async () => {
@@ -121,7 +117,9 @@ export default function PlaylistDetailPage() {
     },
     onSuccess: async () => {
       setIsEditOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["playlist-detail", playlistId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["playlist-detail", playlistId],
+      });
       await queryClient.invalidateQueries({ queryKey: ["playlists"] });
       toast({ title: "Playlist updated" });
     },
@@ -224,13 +222,16 @@ export default function PlaylistDetailPage() {
     onError: (error: any) =>
       toast({
         title: "Cannot add to favorites",
-        description: error.response?.data?.message || "Please log in to save songs.",
+        description:
+          error.response?.data?.message || "Please log in to save songs.",
         variant: "destructive",
       }),
   });
 
   const resolveSong = async (song: Song) => {
-    const artists = Array.isArray(song.artists) ? song.artists.join(" ") : (song.artists || "");
+    const artists = Array.isArray(song.artists)
+      ? song.artists.join(" ")
+      : song.artists || "";
     const q = `${song.name} ${artists || ""}`;
     const res = await axios.get("/api/youtube/search", { params: { q } });
     const top = res.data?.items?.[0];
@@ -271,7 +272,9 @@ export default function PlaylistDetailPage() {
     if (songs.length === 0) return;
     setIsPlayAllLoading(true);
     try {
-      const resolved = (await Promise.all(songs.map(resolveSong))).filter(Boolean) as any[];
+      const resolved = (await Promise.all(songs.map(resolveSong))).filter(
+        Boolean,
+      ) as any[];
       if (resolved.length === 0) {
         toast({
           title: "No playable songs found",
@@ -314,7 +317,8 @@ export default function PlaylistDetailPage() {
       title: selectedSongForVersions.name,
       artists: selectedSongForVersions.artists || "",
       cover: selectedSongForVersions.image || "",
-      duration: (youtubeItem.duration || selectedSongForVersions.duration || 0) / 1000,
+      duration:
+        (youtubeItem.duration || selectedSongForVersions.duration || 0) / 1000,
       spotifyId: selectedSongForVersions.id,
     });
     setIsVersionModalOpen(false);
@@ -322,7 +326,8 @@ export default function PlaylistDetailPage() {
 
   const playlistName = isFavorites
     ? "Favorite songs"
-    : ((data as { id: string; name: string; songs: Song[] } | undefined)?.name || "Playlist");
+    : (data as { id: string; name: string; songs: Song[] } | undefined)?.name ||
+      "Playlist";
 
   if (!isLoaded) {
     return (
@@ -344,19 +349,23 @@ export default function PlaylistDetailPage() {
 
   return (
     <AppLayout activePage="playlists">
-      <div className="max-w-3xl mx-auto px-5 md:px-10 py-8 pb-32 flex flex-col gap-5">
-        <div className="flex items-start justify-between gap-3">
+      <div className="max-w-3xl mx-auto px-4 md:px-10 py-4 mb-16 flex flex-col gap-5">
+        <div className="flex items-start justify-between">
           <h1 className="text-2xl font-bold text-white">{playlistName}</h1>
           {!isFavorites && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-white/80 hover:bg-white/10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white/80 hover:bg-white/10 hover:text-white rounded-full"
+                >
                   <MoreVertical className="w-5 h-5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-black/70 border-white/10 text-white">
                 <DropdownMenuItem
-                  className="cursor-pointer hover:bg-white/10"
+                  className="cursor-pointer text-white data-[highlighted]:bg-white/10 data-[highlighted]:text-white"
                   onClick={() => {
                     setEditName(playlistName);
                     setIsEditOpen(true);
@@ -364,8 +373,9 @@ export default function PlaylistDetailPage() {
                 >
                   Edit name
                 </DropdownMenuItem>
+
                 <DropdownMenuItem
-                  className="cursor-pointer text-red-400 hover:bg-white/10"
+                  className="cursor-pointer text-red-400 data-[highlighted]:bg-white/10 data-[highlighted]:text-red-400"
                   onClick={() => setIsDeleteOpen(true)}
                 >
                   Delete playlist
@@ -375,19 +385,20 @@ export default function PlaylistDetailPage() {
           )}
         </div>
 
-        <div>
-          <Button
-            className="bg-purple-600 hover:bg-purple-500 text-white"
+        <div className="flex justify-start -mt-4">
+          <button
+            className="bg-purple-600 hover:bg-purple-500 text-white p-4 rounded-full"
             onClick={playAll}
             disabled={isPlayAllLoading || isLoading || songs.length === 0}
           >
             {isPlayAllLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Play className="w-4 h-4 mr-2 fill-current" />
+              <Play className="w-4 h-4 fill-current" />
+              // null
             )}
-            Play
-          </Button>
+            {/* Play all */}
+          </button>
         </div>
 
         {isLoading ? (
@@ -419,7 +430,7 @@ export default function PlaylistDetailPage() {
                         text2={
                           Array.isArray(song.artists)
                             ? song.artists.join(", ")
-                            : (song.artists || "")
+                            : song.artists || ""
                         }
                         className1="font-semibold text-sm text-white"
                         className2="text-gray-400 text-xs"
@@ -451,7 +462,8 @@ export default function PlaylistDetailPage() {
                   }
                   onUnfavorite={
                     isFavorites
-                      ? (selectedSong) => unfavoriteMutation.mutate(selectedSong.id)
+                      ? (selectedSong) =>
+                          unfavoriteMutation.mutate(selectedSong.id)
                       : undefined
                   }
                 />
@@ -464,7 +476,9 @@ export default function PlaylistDetailPage() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="glass-panel border-white/20 bg-gray text-white max-w-[364px] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center">Edit name</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-center -mb-2">
+              Edit playlist name
+            </DialogTitle>
           </DialogHeader>
           <form
             className="space-y-3"
@@ -500,14 +514,17 @@ export default function PlaylistDetailPage() {
       </Dialog>
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent className="bg-black/80 backdrop-blur-xl border-white/10 text-white max-w-sm rounded-2xl">
+        <AlertDialogContent className="glass-panel border-white/20 bg-gray text-white  rounded-2xl max-w-[364px] sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete playlist?</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl">
+              Delete playlist?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              Are you sure you want to delete this playlist? This cannot be undone.
+              Are you sure you want to delete this playlist? This cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 sm:space-x-3">
+          <AlertDialogFooter className="sm:space-x-3">
             <AlertDialogCancel className="bg-white/10 border-none hover:bg-white/20 hover:text-white transition-colors">
               Cancel
             </AlertDialogCancel>
@@ -548,4 +565,3 @@ export default function PlaylistDetailPage() {
     </AppLayout>
   );
 }
-

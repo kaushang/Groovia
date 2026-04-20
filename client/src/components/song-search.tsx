@@ -253,19 +253,7 @@ export default function SongSearch({
           <div className="h-full flex items-center justify-center min-h-[200px]">
             <p className="text-gray-400">No results found for "{debouncedQuery}"</p>
           </div>
-        ) : (
-          !asGlassPanel && (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center mb-2">
-                <Search className="w-6 h-6 text-gray-600" />
-              </div>
-              <p className="text-base font-medium text-gray-400">Search for a song to play</p>
-              <p className="text-sm text-gray-600 max-w-xs">
-                Find any track, artist, or album.
-              </p>
-            </div>
-          )
-        )}
+        ) : null }
       </div>
 
       <YoutubeVersionsModal

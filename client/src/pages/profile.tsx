@@ -94,12 +94,12 @@ export default function ProfilePage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-white truncate">{displayName}</h1>
             {user.primaryEmailAddress && (
-              <p className="text-sm text-gray-500 truncate mt-0.5">
+              <p className="text-sm text-white/70 truncate mt-0.5">
                 {user.primaryEmailAddress.emailAddress}
               </p>
             )}
             {joinDate && (
-              <p className="text-xs text-gray-600 mt-1">Member since {joinDate}</p>
+              <p className="text-xs text-white/70 mt-1">Member since {joinDate}</p>
             )}
           </div>
         </section>

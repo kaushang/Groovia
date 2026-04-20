@@ -162,10 +162,10 @@ export default function SoloMiniPlayer() {
   const abActive = isLoopingRange || loopStart !== null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 w-full  lg:mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-50 w-full lg:mx-auto">
       {/* ── TOP PROGRESS BAR — spans full width, acts as the border ── */}
       <div
-        className="h-1 w-full bg-white/15 cursor-pointer rounded-t-sm overflow-hidden w-[100%] lg:w-[100%] mx-auto"
+        className="h-1 w-full bg-white/15 cursor-pointer rounded-t-sm overflow-hidden lg:w-[100%] mx-auto"
         onClick={handleSeek}
       >
         {/* A-B range tint */}

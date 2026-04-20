@@ -37,7 +37,7 @@ export default function SignOutModal({
         data-testid="sign-out-modal"
       >
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold mb-0 text-center">
+          <DialogTitle className="text-2xl font-bold -mb-2 text-center">
             Sign Out
           </DialogTitle>
         </DialogHeader>

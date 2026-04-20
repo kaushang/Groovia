@@ -7,7 +7,7 @@ import GlassPanel from "@/components/glass-panel";
 import { useSignUp, useSignIn } from "@clerk/clerk-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Disc3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Disc3 } from "lucide-react";
 import AnimatedLogo from "@/components/animated-logo";
 import ForgetPassword from "@/components/auth-components/forget-password";
 import VerifySignup from "@/components/auth-components/verify-signup";
@@ -177,11 +177,11 @@ export default function AuthPage() {
       {/* Right section - Form */}
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 md:p-12 relative min-h-[100dvh]">
         {/* Mobile Logo */}
-        <div className="lg:hidden absolute p-6 top-8 left-0 w-full flex justify-center opacity-90 mt-4">
+        <div className="lg:hidden top-8 w-full flex justify-center mt-4">
           <AnimatedLogo size="lg" />
         </div>
 
-        <div className="w-full max-w-[460px] z-10 mt-24 lg:mt-0 relative lg:-ml-60">
+        <div className="w-full max-w-[460px] z-10 mt-8 lg:mt-0 relative lg:-ml-60">
           <GlassPanel className="p-6 sm:p-8">
             {pendingVerification ? (
               <VerifySignup />
@@ -189,13 +189,21 @@ export default function AuthPage() {
               <ForgetPassword onCancel={() => setIsForgotPassword(false)} />
             ) : (
               <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="mb-8 text-center lg:text-left">
-                  <h1 className="text-2xl md:text-3xl font-light text-gray-200 tracking-tight mb-2">
-                    {activeTab === "login" ? "Welcome Back" : "Join the vibe"}
-                  </h1>
-                  <p className="text-gray-400 text-[15px]">
-                    Enter your details to get started.
-                  </p>
+                <div className="mb-8 text-left lg:text-left flex justify-between items-start">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-light text-gray-200 tracking-tight mb-2">
+                      {activeTab === "login" ? "Welcome Back" : "Join the vibe"}
+                    </h1>
+                    <p className="text-gray-200 text-[15px]">
+                      Enter your details to get started.
+                    </p>
+                  </div>
+                  <span className="flex gap-1 items-start justify-end align-center text-gray-200 hover:text-purple-300 px-1 m-1">
+                    <ArrowLeft size={16} className="mt-1" />
+                    <a href="/" className="">
+                      Back
+                    </a>
+                  </span>
                 </div>
 
                 <Tabs
