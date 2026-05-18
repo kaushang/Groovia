@@ -16,7 +16,21 @@ import PrivacyPolicy from "@/pages/privacy-policy";
 import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 
 function SsoCallbackPage() {
-  return <AuthenticateWithRedirectCallback />;
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="flex flex-row gap-4 items-center text-white/80">
+        <div className="">
+            <img
+              src="/groovia_icon.avif"
+              alt=""
+              className="w-10 h-10 animate-spin-reverse-slow"
+            />
+        </div>
+        <p className="text-sm">Signing you in...</p>
+      </div>
+      <AuthenticateWithRedirectCallback />
+    </div>
+  );
 }
 
 function Router() {
