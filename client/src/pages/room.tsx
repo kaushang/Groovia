@@ -15,7 +15,7 @@ import GlassPanel from "@/components/glass-panel";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { io, Socket } from "socket.io-client";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
 import ProfilePage from "@/pages/profile";
 import MiniPlayerBar from "@/components/room components/mini-player-bar";
 import { useGlobalPlayer } from "@/components/global-player-provider";
@@ -40,6 +40,7 @@ export default function Room() {
   const searchParams = new URLSearchParams(search);
   const view = searchParams.get("view") || "room";
   const { user } = useUser();
+  const { getToken } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null); // State to pass to children
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -153,6 +154,7 @@ export default function Room() {
   });
 
   const activeSong = room?.queueItems?.find((item: any) => item.isPlaying);
+  const lastTrackedRoomSongRef = useRef<string | null>(null);
 
   const isHost = Boolean(
     room &&
@@ -488,6 +490,47 @@ export default function Room() {
     }
   }, [activeSong?._id, activeSong?.youtubeId, activeSong?.song?.youtubeId]);
 
+  useEffect(() => {
+    const trackRoomSongStart = async () => {
+      if (!activeSong?.song?.spotifyId) return;
+      const currentTrackId = `${activeSong._id || ""}-${activeSong.song.spotifyId}`;
+      if (lastTrackedRoomSongRef.current === currentTrackId) return;
+
+      lastTrackedRoomSongRef.current = currentTrackId;
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const response = await axios.post(
+          "/api/music-history",
+          {
+            spotifyId: activeSong.song.spotifyId,
+            title: activeSong.song.title,
+            artist: activeSong.song.artist,
+            cover: activeSong.song.cover,
+            duration: activeSong.song.duration,
+            preview_url: activeSong.song.url,
+            context: "room",
+          },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        const newEntry = response.data?.entry;
+        if (newEntry) {
+          queryClient.setQueryData(["music-history"], (oldData: any) => {
+            if (!oldData) return oldData;
+            const songs = Array.isArray(oldData.songs) ? [newEntry, ...oldData.songs] : [newEntry];
+            return { ...oldData, songs };
+          });
+        }
+      } catch (error) {
+        console.error("Failed to track room song start:", error);
+      }
+    };
+
+    trackRoomSongStart();
+  }, [activeSong?._id, activeSong?.song?.spotifyId, getToken, queryClient]);
+
   const addToQueueMutation = useMutation({
     mutationFn: ({
       song,
@@ -595,7 +638,8 @@ export default function Room() {
         description: "You have successfully left the room",
       });
       setActiveRoomId(null);
-      setLocation("/");
+      {user ? setLocation("/home") : setLocation("/")};
+      // setLocation("/");
     },
     onError: (error) => {
       console.error("❌ Leave room failed:", error.message);
@@ -874,16 +918,6 @@ export default function Room() {
               </span>
               {/* Mobile: profile avatar + leave button */}
               <div className="flex md:hidden items-center gap-2 mr-1">
-                {user && (
-                  <button
-                    onClick={toggleProfileView}
-                    className="overflow-hidden hover:border-purple-400 transition-all cursor-pointer shrink-0 bg-white/10 rounded-full border border-white/20 px-2 text-white/90 flex items-center text-sm"
-                    title="View Profile"
-                  >
-                    <CircleUserRound size={16} className="mr-1" />
-                    <span className="py-1 text-sm">Profile</span>
-                  </button>
-                )}
                 <Button
                   size="icon"
                   variant="ghost"
@@ -937,16 +971,6 @@ export default function Room() {
           <div className="hidden md:flex items-center z-20">
             {/* Desktop: Profile + Leave Room */}
             <div className="flex items-center gap-3">
-              {user && (
-                <Button
-                  onClick={toggleProfileView}
-                  className="flex items-center gap-2 h-9 bg-white/10 border border-white/20 rounded-lg overflow-hidden hover:border-purple-400 transition-all cursor-pointer"
-                  title="View Profile"
-                >
-                  <CircleUserRound size={32} />
-                  <p className="text-white">Profile</p>
-                </Button>
-              )}
               <Button
                 size="sm"
                 className="text-red-400 bg-red-400/10 border border-red-400/20 hover:bg-red-400/10 hover:text-red-400 hover:border-red-400/60"
@@ -1139,56 +1163,6 @@ export default function Room() {
         </div>
       )}
 
-      {view === "profile" && activeSong && (
-        <MiniPlayerBar
-          activeSong={activeSong}
-          isPlaying={isPlaying}
-          isHost={isHost}
-          isLooping={isLooping}
-          currentTime={currentTime}
-          duration={duration}
-          handlePlayPause={handlePlayPause}
-          handleNext={handleNext}
-          handlePrevious={handlePrevious}
-          handleSeek={handleSeek}
-          formatTime={formatTime}
-          isLoopingRange={isLoopingRange}
-          loopStart={loopStart}
-          loopEnd={loopEnd}
-          onUpdateLoopRange={(start, end, isActive) => {
-            setLoopStart(start);
-            setLoopEnd(end);
-            setIsLoopingRange(isActive);
-            if (socketRef.current) {
-              socketRef.current.emit("updateLoopRange", {
-                roomId,
-                loopStart: start,
-                loopEnd: end,
-                isLoopingRange: isActive,
-              });
-            }
-          }}
-          onToggleLoop={(newState) => {
-            setIsLooping(newState);
-            const currentQueueItemId = activeSong?._id || activeSong?.id;
-            if (currentQueueItemId) {
-              localStorage.setItem(
-                "groovia_loop_state",
-                JSON.stringify({
-                  queueItemId: currentQueueItemId,
-                  isLooping: newState,
-                }),
-              );
-            }
-            if (socketRef.current) {
-              socketRef.current.emit("toggleLoop", {
-                roomId,
-                isLooping: newState,
-              });
-            }
-          }}
-        />
-      )}
     </div>
   );
 }

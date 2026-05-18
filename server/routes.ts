@@ -61,6 +61,40 @@ async function ensureRegisteredUser(clerkId: string) {
   return user;
 }
 
+async function findOrCreateSong(payload: {
+  spotifyId?: string;
+  title?: string;
+  artists?: string[] | string;
+  artist?: string;
+  cover?: string;
+  duration?: number;
+  preview_url?: string;
+  url?: string;
+}) {
+  const { spotifyId, title, artists, artist, cover, duration, preview_url, url } = payload;
+  if (!spotifyId) {
+    return null;
+  }
+
+  let song = await Song.findOne({ spotifyId });
+  if (song) return song;
+
+  const artistStr = Array.isArray(artists)
+    ? artists.join(", ")
+    : (artist || "Unknown Artist");
+
+  song = new Song({
+    title: title || "Unknown Title",
+    artist: artistStr,
+    cover,
+    duration,
+    url: url || preview_url,
+    spotifyId,
+  });
+  await song.save();
+  return song;
+}
+
 export async function registerRoutes(
   app: Express,
   server: Server<typeof IncomingMessage, typeof ServerResponse>,
@@ -947,6 +981,122 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error removing favorite:", error);
       res.status(500).json({ message: "Failed to remove favorite" });
+    }
+  });
+
+  // Track song starts in user's previously played history
+  app.post("/api/music-history", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      const {
+        spotifyId,
+        title,
+        artist,
+        artists,
+        cover,
+        duration,
+        preview_url,
+        url,
+        context,
+      } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!spotifyId) {
+        return res.status(400).json({ message: "Song must have a spotifyId" });
+      }
+
+      const user = await ensureRegisteredUser(userId);
+      const song = await findOrCreateSong({
+        spotifyId,
+        title,
+        artist,
+        artists,
+        cover,
+        duration,
+        preview_url,
+        url,
+      });
+
+      if (!song) {
+        return res.status(404).json({ message: "Song not found" });
+      }
+
+      user.previouslyPlayed.push({
+        song: song._id,
+        playedAt: new Date(),
+        context: context === "room" ? "room" : "solo",
+      });
+      await user.save();
+
+      res.json({
+        success: true,
+        entry: {
+          id: song.spotifyId || song._id,
+          _id: song._id,
+          name: song.title,
+          artists: song.artist ? song.artist.split(",").map((a: string) => a.trim()) : [],
+          image: song.cover,
+          duration: song.duration,
+          preview_url: song.url,
+          playedAt: new Date().toISOString(),
+          context: context === "room" ? "room" : "solo",
+        },
+      });
+    } catch (error) {
+      console.error("Error tracking music history:", error);
+      res.status(500).json({ message: "Failed to track music history" });
+    }
+  });
+
+  // Get user's previously played songs (paginated, newest first)
+  app.get("/api/music-history", requireAuth(), async (req, res) => {
+    try {
+      const { userId } = getAuth(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const offset = Math.max(0, parseInt(req.query.offset as string) || 0);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+
+      const user = await RegisteredUser.findOne({ clerkId: userId }).populate("previouslyPlayed.song");
+      if (!user) {
+        return res.json({ songs: [], hasMore: false, total: 0 });
+      }
+
+      const sortedHistory = [...(user.previouslyPlayed || [])].sort(
+        (a: any, b: any) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime(),
+      );
+
+      const page = sortedHistory.slice(offset, offset + limit);
+      const songs = page
+        .map((entry: any) => {
+          const song = entry.song;
+          if (!song) return null;
+          return {
+            id: song.spotifyId || song._id,
+            _id: song._id,
+            name: song.title,
+            artists: song.artist ? song.artist.split(",").map((a: string) => a.trim()) : [],
+            image: song.cover,
+            duration: song.duration,
+            preview_url: song.url,
+            playedAt: entry.playedAt,
+            context: entry.context || "solo",
+          };
+        })
+        .filter(Boolean);
+
+      res.json({
+        songs,
+        hasMore: offset + limit < sortedHistory.length,
+        total: sortedHistory.length,
+      });
+    } catch (error) {
+      console.error("Error fetching music history:", error);
+      res.status(500).json({ message: "Failed to fetch music history" });
     }
   });
 

@@ -23,12 +23,12 @@ export default function LeaveRoomModal({
 }: LeaveRoomModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="glass-panel border-white/20 bg-transparent bg-white/5 backdrop-blur-xl text-white max-w-[364px] sm:max-w-md">
+            <DialogContent className="glass-panel border-white/20 bg-white/5 backdrop-blur-xl text-white max-w-[364px] sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-bold mb-2 text-center">
                         Leaving so soon?
                     </DialogTitle>
-                    <DialogDescription className="text-gray-300 text-center text-sm text-center">
+                    <DialogDescription className="text-gray-300 text-center text-sm">
                         Are you sure you want to leave this room? <br /> You will stop listening to
                         the music.
                     </DialogDescription>

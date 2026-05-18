@@ -15,6 +15,13 @@ const registeredUserSchema = new Schema({
   friends: [{ type: Schema.Types.ObjectId, ref: "RegisteredUser" }],
   playlists: [{ type: Schema.Types.ObjectId, ref: "Playlist" }],
   favoriteSongs: [{ type: Schema.Types.ObjectId, ref: "Song" }],
+  previouslyPlayed: [
+    {
+      song: { type: Schema.Types.ObjectId, ref: "Song", required: true },
+      playedAt: { type: Date, default: Date.now },
+      context: { type: String, enum: ["solo", "room"], default: "solo" },
+    },
+  ],
   createdAt: { type: Date, default: Date.now },
 });
 export const RegisteredUser = model("RegisteredUser", registeredUserSchema);

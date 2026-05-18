@@ -101,7 +101,7 @@ export default function AppLayout({ children, activePage }: AppLayoutProps) {
       {/* Navigation */}
       <nav className="flex-1 flex flex-col gap-0.5 px-2 overflow-y-auto">
         {!collapsed && (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-3 mb-1 mt-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 mb-1 mt-1">
             Navigate
           </p>
         )}
@@ -129,7 +129,7 @@ export default function AppLayout({ children, activePage }: AppLayoutProps) {
         <div className="h-px bg-white/[0.08] mx-2 my-2" />
 
         {!collapsed && (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-3 mb-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 mb-1">
             Rooms
           </p>
         )}
@@ -155,7 +155,7 @@ export default function AppLayout({ children, activePage }: AppLayoutProps) {
         <div className="h-px bg-white/[0.08] mx-2 my-2" />
 
         {!collapsed && (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-3 mb-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 mb-1">
             Library
           </p>
         )}

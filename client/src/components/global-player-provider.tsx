@@ -6,6 +6,9 @@ import React, {
   useCallback,
 } from "react";
 import YouTube from "react-youtube";
+import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export interface SoloSong {
   youtubeId: string;
@@ -47,6 +50,8 @@ export function useGlobalPlayer() {
 }
 
 export function GlobalPlayerProvider({ children }: { children: React.ReactNode }) {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
   const [currentSong, setCurrentSong] = useState<SoloSong | null>(null);
   const [queue, setQueue] = useState<SoloSong[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -59,6 +64,41 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   // Use a ref for isLooping so onStateChange closure always sees latest value
   const isLoopingRef = useRef(false);
+
+  const trackSongStart = useCallback(
+    async (song: SoloSong) => {
+      try {
+        if (!song.spotifyId) return;
+        const token = await getToken();
+        if (!token) return;
+
+        const response = await axios.post(
+          "/api/music-history",
+          {
+            spotifyId: song.spotifyId,
+            title: song.title,
+            artists: Array.isArray(song.artists) ? song.artists : [song.artists],
+            cover: song.cover,
+            duration: song.duration,
+            context: "solo",
+          },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        const newEntry = response.data?.entry;
+        if (newEntry) {
+          queryClient.setQueryData(["music-history"], (oldData: any) => {
+            if (!oldData) return oldData;
+            const songs = Array.isArray(oldData.songs) ? [newEntry, ...oldData.songs] : [newEntry];
+            return { ...oldData, songs };
+          });
+        }
+      } catch (error) {
+        console.error("Failed to track solo song start:", error);
+      }
+    },
+    [getToken, queryClient],
+  );
 
   const startProgressTracking = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -86,8 +126,9 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
       setDuration(song.duration || 0);
       setIsPlaying(true);
       startProgressTracking();
+      trackSongStart(song);
     },
-    [startProgressTracking]
+    [startProgressTracking, trackSongStart]
   );
 
   const addToQueue = useCallback(

@@ -113,18 +113,11 @@ export default function PlaylistsPage() {
                 }
                 className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 flex items-center gap-3"
               >
-                <div className="w-10 h-10 rounded-lg bg-white/[0.08] border border-white/10 flex items-center justify-center shrink-0">
-                  {playlist.isFavorites ? (
-                    <Heart className="w-5 h-5 text-pink-400" />
-                  ) : (
-                    <ListMusic className="w-5 h-5 text-purple-300" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
+                <div className="w-full flex items-center gap-5 justify-between">
                   <p className="text-sm font-semibold text-white truncate">
                     {playlist.name}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-white/70 mt-0.5">
                     {playlist.songCount} {playlist.songCount === 1 ? "song" : "songs"}
                   </p>
                 </div>

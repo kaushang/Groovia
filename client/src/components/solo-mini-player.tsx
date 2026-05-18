@@ -162,7 +162,7 @@ export default function SoloMiniPlayer() {
   const abActive = isLoopingRange || loopStart !== null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 w-full lg:mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-50 w-full lg:mx-auto lg:left-56">
       {/* ── TOP PROGRESS BAR — spans full width, acts as the border ── */}
       <div
         className="h-1 w-full bg-white/15 cursor-pointer rounded-t-sm overflow-hidden lg:w-[100%] mx-auto"
@@ -208,7 +208,7 @@ export default function SoloMiniPlayer() {
           </div>
 
           {/* ── CENTRE: Full playback controls (desktop) ──────────────── */}
-          <div className="hidden md:flex flex-col items-center justify-center flex-1 max-w-md mx-auto gap-1.5">
+          <div className="hidden md:flex flex-col items-center justify-center flex-1 max-w-md mx-auto gap-1.5 lg:mr-56">
             {/* Buttons row */}
             <div className="flex items-center gap-3">
               {/* A-B Loop */}
